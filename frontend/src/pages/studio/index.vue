@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import {
 	type GuiConfig,
+	type UploadedWorkspaceFile,
+	type WorkspaceFileKind,
+	createGuiWorkspace,
 	type ProviderTestResponse,
 	getGuiConfig,
 	saveGuiConfig,
 	testGuiProvider,
+	uploadWorkspaceFiles,
 } from "@/apis/guiApi";
 import { Button } from "@/components/ui/button";
 import {
@@ -211,16 +215,25 @@ const configSaving = ref(false);
 const configError = ref("");
 const maskedConfig = ref<GuiConfig>({});
 const apiForms = ref<Record<string, ApiRowForm>>({});
+const workspaceCreating = ref(false);
+const uploadStatus = ref<Record<string, UploadedWorkspaceFile[]>>({});
+const uploadingKind = ref<WorkspaceFileKind | null>(null);
 
 const configuredCount = computed(
 	() => Object.values(apiForms.value).filter((form) => form.configured).length,
 );
 
+const ragKnowledgeDir = computed(() => {
+	const rag = getNode(maskedConfig.value, ["rag"]);
+	return String(rag.knowledge_base_dir ?? "data/rag_cases");
+});
+
 const uploadKinds = [
-	{ key: "problem", label: "赛题文件", icon: FileUp },
-	{ key: "attachment", label: "题目附件", icon: Database },
-	{ key: "template", label: "格式样例", icon: Archive },
-	{ key: "requirement", label: "其他要求", icon: UploadCloud },
+	{ key: "problem" as const, label: "赛题文件", icon: FileUp },
+	{ key: "attachment" as const, label: "题目附件", icon: Database },
+	{ key: "template" as const, label: "格式样例", icon: Archive },
+	{ key: "requirement" as const, label: "其他要求", icon: UploadCloud },
+	{ key: "chat" as const, label: "对话附件", icon: MessageSquare },
 ];
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
@@ -369,6 +382,57 @@ const testProviderRow = async (definition: ApiRowDefinition) => {
 	}
 };
 
+const createWorkspace = async () => {
+	workspaceCreating.value = true;
+	try {
+		const response = await createGuiWorkspace(workspaceTitle.value);
+		activeTaskId.value = response.data.task_id;
+		uploadStatus.value = {};
+		toast({
+			title: "工作区已创建",
+			description: response.data.task_id,
+		});
+	} catch (error) {
+		console.error("创建工作区失败:", error);
+		toast({
+			title: "创建工作区失败",
+			description: "请确认后端服务正在运行。",
+			variant: "destructive",
+		});
+	} finally {
+		workspaceCreating.value = false;
+	}
+};
+
+const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
+	const input = event.target as HTMLInputElement;
+	const files = Array.from(input.files ?? []);
+	if (!files.length || !activeTaskId.value) return;
+
+	uploadingKind.value = kind;
+	try {
+		const response = await uploadWorkspaceFiles(activeTaskId.value, kind, files);
+		uploadStatus.value = {
+			...uploadStatus.value,
+			[kind]: response.data.files,
+		};
+		toast({
+			title: "上传完成",
+			description: `${files.length} 个文件已写入 ${kind}`,
+		});
+	} catch (error) {
+		console.error("上传文件失败:", error);
+		toast({
+			title: "上传失败",
+			description: "请检查文件名和后端服务。",
+			variant: "destructive",
+		});
+	} finally {
+		uploadingKind.value = null;
+		input.value = "";
+	}
+};
+
 onMounted(() => {
 	loadConfig();
 });
@@ -391,9 +455,9 @@ onMounted(() => {
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" :disabled="workspaceCreating" @click="createWorkspace">
             <CheckCircle2 />
-            新建工作区
+            {{ workspaceCreating ? "创建中" : "新建工作区" }}
           </Button>
           <Button size="sm">
             <Play />
@@ -500,7 +564,7 @@ onMounted(() => {
               </CardHeader>
               <CardContent class="text-sm">
                 <div class="rounded-md border bg-white p-3 font-mono text-xs leading-6">
-                  data/rag_cases/<br>
+                  {{ ragKnowledgeDir }}/<br>
                   &nbsp;&nbsp;case-name/<br>
                   &nbsp;&nbsp;&nbsp;&nbsp;problem.pdf<br>
                   &nbsp;&nbsp;&nbsp;&nbsp;data/<br>
@@ -526,11 +590,28 @@ onMounted(() => {
             <CardDescription>赛题、附件、格式样例和额外要求分开上传。</CardDescription>
           </CardHeader>
           <CardContent>
-            <div class="grid gap-3 md:grid-cols-4">
-              <label v-for="item in uploadKinds" :key="item.key" class="flex cursor-pointer flex-col gap-2 rounded-md border bg-white p-3 transition-colors hover:bg-zinc-50">
+            <div v-if="!activeTaskId" class="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              请先创建工作区，再上传本次题目文件。
+            </div>
+            <div class="grid gap-3 md:grid-cols-5">
+              <label
+                v-for="item in uploadKinds"
+                :key="item.key"
+                class="flex cursor-pointer flex-col gap-2 rounded-md border bg-white p-3 transition-colors hover:bg-zinc-50"
+                :class="{ 'cursor-not-allowed opacity-60': !activeTaskId || uploadingKind === item.key }"
+              >
                 <component :is="item.icon" class="size-5 text-zinc-700" />
                 <span class="text-sm font-medium">{{ item.label }}</span>
-                <input class="text-xs" type="file" multiple>
+                <span class="text-xs text-zinc-500">
+                  {{ uploadingKind === item.key ? "上传中" : uploadStatus[item.key]?.length ? `${uploadStatus[item.key].length} 个文件` : "选择文件" }}
+                </span>
+                <input
+                  class="text-xs"
+                  type="file"
+                  multiple
+                  :disabled="!activeTaskId || uploadingKind === item.key"
+                  @change="uploadFilesForKind(item.key, $event)"
+                >
               </label>
             </div>
             <Textarea v-model="problemText" class="mt-3 min-h-24" placeholder="也可以直接粘贴题目文本或补充要求。" />
