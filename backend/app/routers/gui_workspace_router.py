@@ -6,9 +6,16 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from app.core.progress_events import append_progress_event
+from app.routers.modeling_router import (
+    CancelTaskResponse,
+    _active_tasks,
+    run_modeling_task_async,
+)
+from app.schemas.enums import CompTemplate, FormatOutPut
 from app.utils.common_utils import create_task_id, create_work_dir, ensure_safe_task_id
 
 router = APIRouter(tags=["gui-workspace"])
@@ -30,6 +37,21 @@ class WorkspaceCreateRequest(BaseModel):
     """Create workspace request."""
 
     title: str = ""
+
+
+class WorkspaceRunRequest(BaseModel):
+    """Start workflow request."""
+
+    problem_text: str = ""
+    mode: Literal["demo", "real"] = "real"
+    comp_template: CompTemplate = CompTemplate.CHINA
+    format_output: FormatOutPut = FormatOutPut.Markdown
+
+
+class WorkspaceResumeRequest(BaseModel):
+    """Resume request for MVP revision loops."""
+
+    instruction: str = ""
 
 
 def _workspace_root(task_id: str) -> Path:
@@ -129,3 +151,92 @@ async def upload_workspace_files(
         )
 
     return {"task_id": safe_task_id, "files": saved_files}
+
+
+def _read_problem_text(root: Path) -> str:
+    problem_dir = root / "input" / INPUT_DIRS["problem"]
+    if not problem_dir.exists():
+        return ""
+    chunks = []
+    for path in sorted(problem_dir.iterdir()):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() in {".txt", ".md", ".tex", ".csv"}:
+            chunks.append(path.read_text(encoding="utf-8", errors="ignore"))
+        else:
+            chunks.append(path.read_bytes().decode("utf-8", errors="ignore"))
+    return "\n\n".join(chunk for chunk in chunks if chunk.strip())
+
+
+@router.post("/workspaces/{task_id}/run")
+async def start_workspace_run(
+    task_id: str,
+    request: WorkspaceRunRequest,
+    background_tasks: BackgroundTasks,
+) -> dict:
+    """Start the existing modeling workflow from a GUI workspace."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+
+    problem_text = request.problem_text.strip() or _read_problem_text(root)
+    if not problem_text:
+        raise HTTPException(status_code=400, detail="缺少题目文本或题目文件")
+
+    append_progress_event(
+        safe_task_id,
+        stage="task.queued",
+        message="任务已加入后台队列",
+        metadata={"mode": request.mode},
+        work_dir=root,
+    )
+    background_tasks.add_task(
+        run_modeling_task_async,
+        safe_task_id,
+        problem_text,
+        request.comp_template,
+        request.format_output,
+    )
+    return {"task_id": safe_task_id, "status": "processing"}
+
+
+@router.post("/workspaces/{task_id}/stop", response_model=CancelTaskResponse)
+async def stop_workspace_run(task_id: str) -> CancelTaskResponse:
+    """Stop a running GUI workspace task."""
+    safe_task_id = _require_safe_task_id(task_id)
+    if safe_task_id not in _active_tasks:
+        return CancelTaskResponse(success=False, message="任务不存在或已完成")
+    _, cancel_event = _active_tasks[safe_task_id]
+    cancel_event.set()
+    append_progress_event(
+        safe_task_id,
+        stage="task.stop_requested",
+        message="停止指令已发送",
+        level="warning",
+    )
+    return CancelTaskResponse(success=True, message="停止指令已发送")
+
+
+@router.post("/workspaces/{task_id}/resume")
+async def resume_workspace_run(
+    task_id: str,
+    request: WorkspaceResumeRequest,
+) -> dict:
+    """Record a resume request for the GUI revision loop MVP."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    append_progress_event(
+        safe_task_id,
+        stage="task.resume_requested",
+        message="用户请求继续或修改任务",
+        metadata={"instruction": request.instruction},
+        work_dir=root,
+    )
+    return {
+        "task_id": safe_task_id,
+        "status": "resume_requested",
+        "message": "已记录修改意见；完整断点续跑将在交互式规划路线中扩展。",
+    }
