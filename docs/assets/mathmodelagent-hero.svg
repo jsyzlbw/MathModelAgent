@@ -1,0 +1,141 @@
+<svg width="1500" height="520" viewBox="0 0 1500 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">MathModelAgent animated workflow hero</title>
+  <desc id="desc">An animated research-to-paper workflow showing API configuration, RAG, planning, modeling, paper generation, and QA.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1500" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08111f"/>
+      <stop offset="0.48" stop-color="#102235"/>
+      <stop offset="1" stop-color="#17241d"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#53d6ff"/>
+      <stop offset="0.5" stop-color="#79f2b6"/>
+      <stop offset="1" stop-color="#ffd166"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#f8fbff"/>
+      <stop offset="1" stop-color="#dce8f6"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.31 0 0 0 0 0.84 0 0 0 0 1 0 0 0 0.38 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <style>
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+      .sans { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .tiny { font-size: 18px; letter-spacing: 0; }
+      .label { font-size: 22px; font-weight: 650; letter-spacing: 0; }
+      .title { font-size: 70px; font-weight: 780; letter-spacing: 0; }
+      .muted { fill: #a9bdd2; }
+      .white { fill: #f8fbff; }
+      .node { fill: #0d1a2b; stroke: #ffffff; stroke-opacity: 0.12; }
+      .dash { stroke-dasharray: 6 12; animation: dash 9s linear infinite; }
+      .pulse { transform-origin: center; animation: pulse 2.6s ease-in-out infinite; }
+      .float { animation: float 5s ease-in-out infinite; }
+      .float2 { animation: float2 6s ease-in-out infinite; }
+      .scan { animation: scan 5.5s ease-in-out infinite; }
+      .blink { animation: blink 1.2s steps(2, end) infinite; }
+      .fade1 { animation: fade 9s ease-in-out infinite; }
+      .fade2 { animation: fade 9s ease-in-out 1.5s infinite; }
+      .fade3 { animation: fade 9s ease-in-out 3s infinite; }
+      .fade4 { animation: fade 9s ease-in-out 4.5s infinite; }
+      @keyframes dash { to { stroke-dashoffset: -180; } }
+      @keyframes pulse { 0%,100% { opacity: .72; transform: scale(1); } 50% { opacity: 1; transform: scale(1.055); } }
+      @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+      @keyframes float2 { 0%,100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(9px) translateX(5px); } }
+      @keyframes scan { 0%,100% { transform: translateX(-250px); opacity: .05; } 50% { transform: translateX(250px); opacity: .32; } }
+      @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: .12; } }
+      @keyframes fade { 0%,18% { opacity: .18; } 32%,65% { opacity: 1; } 85%,100% { opacity: .18; } }
+    </style>
+  </defs>
+
+  <rect width="1500" height="520" fill="url(#bg)"/>
+  <rect width="1500" height="520" fill="url(#grid)"/>
+  <path d="M0 430C210 362 332 448 520 388C738 318 780 196 998 206C1194 215 1291 333 1500 271V520H0V430Z" fill="url(#accent)" opacity="0.08"/>
+  <path class="scan" d="M284 -40L400 -40L1260 560H1144L284 -40Z" fill="#ffffff"/>
+
+  <g transform="translate(86 70)">
+    <rect x="0" y="0" width="590" height="380" rx="22" fill="#07101d" stroke="#ffffff" stroke-opacity="0.12" filter="url(#shadow)"/>
+    <rect x="24" y="22" width="542" height="62" rx="14" fill="#0f2235" stroke="#ffffff" stroke-opacity="0.08"/>
+    <circle cx="54" cy="53" r="7" fill="#ff6b6b"/>
+    <circle cx="78" cy="53" r="7" fill="#ffd166"/>
+    <circle cx="102" cy="53" r="7" fill="#79f2b6"/>
+    <text x="132" y="61" class="mono tiny muted">mathmodelagent/studio</text>
+
+    <text x="28" y="135" class="mono tiny" fill="#79f2b6">$ start pipeline --mode demo</text>
+    <text x="28" y="178" class="mono tiny white">intake → parse → rag → plan → model → solve → write → qa</text>
+    <rect x="28" y="210" width="526" height="20" rx="10" fill="#142a40"/>
+    <rect class="fade1" x="28" y="210" width="112" height="20" rx="10" fill="#53d6ff"/>
+    <rect class="fade2" x="150" y="210" width="118" height="20" rx="10" fill="#79f2b6"/>
+    <rect class="fade3" x="278" y="210" width="118" height="20" rx="10" fill="#ffd166"/>
+    <rect class="fade4" x="406" y="210" width="148" height="20" rx="10" fill="#ff8fab"/>
+
+    <g class="float">
+      <rect x="32" y="270" width="150" height="62" rx="14" fill="#101f30" stroke="#53d6ff" stroke-opacity="0.42"/>
+      <text x="54" y="306" class="mono tiny white">config.json</text>
+    </g>
+    <g class="float2">
+      <rect x="218" y="270" width="150" height="62" rx="14" fill="#101f30" stroke="#79f2b6" stroke-opacity="0.42"/>
+      <text x="242" y="306" class="mono tiny white">rag_cases/</text>
+    </g>
+    <g class="float">
+      <rect x="404" y="270" width="150" height="62" rx="14" fill="#101f30" stroke="#ffd166" stroke-opacity="0.42"/>
+      <text x="430" y="306" class="mono tiny white">res.pdf</text>
+    </g>
+  </g>
+
+  <g transform="translate(780 66)">
+    <text x="0" y="70" class="sans title white">MathModelAgent</text>
+    <text x="4" y="115" class="sans label muted">GUI-first multi-agent workflow for MCM / ICM papers.</text>
+    <text x="4" y="150" class="sans tiny muted">Configure APIs, import excellent papers, upload a problem package, discuss a plan, then generate LaTeX/PDF with visible progress.</text>
+
+    <g transform="translate(4 198)">
+      <path d="M44 44H194" stroke="url(#accent)" stroke-width="3" class="dash"/>
+      <path d="M238 44H388" stroke="url(#accent)" stroke-width="3" class="dash"/>
+      <path d="M432 44H582" stroke="url(#accent)" stroke-width="3" class="dash"/>
+
+      <g class="pulse">
+        <circle cx="44" cy="44" r="38" fill="#0d1a2b" stroke="#53d6ff" stroke-width="2"/>
+        <text x="19" y="51" class="mono tiny white">API</text>
+      </g>
+      <g class="pulse">
+        <circle cx="238" cy="44" r="38" fill="#0d1a2b" stroke="#79f2b6" stroke-width="2"/>
+        <text x="214" y="51" class="mono tiny white">RAG</text>
+      </g>
+      <g class="pulse">
+        <circle cx="432" cy="44" r="38" fill="#0d1a2b" stroke="#ffd166" stroke-width="2"/>
+        <text x="397" y="51" class="mono tiny white">PLAN</text>
+      </g>
+      <g class="pulse">
+        <circle cx="626" cy="44" r="38" fill="#0d1a2b" stroke="#ff8fab" stroke-width="2"/>
+        <text x="598" y="51" class="mono tiny white">QA</text>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(820 346)" filter="url(#softGlow)">
+    <rect x="0" y="0" width="180" height="108" rx="14" fill="url(#paper)"/>
+    <rect x="22" y="24" width="136" height="8" rx="4" fill="#31475f" opacity="0.85"/>
+    <rect x="22" y="44" width="94" height="7" rx="3.5" fill="#31475f" opacity="0.42"/>
+    <rect x="22" y="62" width="126" height="7" rx="3.5" fill="#31475f" opacity="0.42"/>
+    <rect x="22" y="80" width="72" height="7" rx="3.5" fill="#31475f" opacity="0.42"/>
+  </g>
+  <g transform="translate(1034 346)">
+    <rect x="0" y="0" width="180" height="108" rx="14" fill="#0d1a2b" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="22" y="36" class="mono tiny" fill="#79f2b6">claim_plan.json</text>
+    <text x="22" y="66" class="mono tiny muted">source_id → result</text>
+    <rect class="blink" x="22" y="78" width="92" height="8" rx="4" fill="#ffd166"/>
+  </g>
+  <g transform="translate(1248 346)">
+    <rect x="0" y="0" width="166" height="108" rx="14" fill="#0d1a2b" stroke="#ffffff" stroke-opacity="0.12"/>
+    <text x="22" y="36" class="mono tiny" fill="#53d6ff">paper_qa.md</text>
+    <path d="M24 66L48 88L98 36" stroke="#79f2b6" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

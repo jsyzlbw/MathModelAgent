@@ -1,479 +1,430 @@
-<h1 align="center">🤖 MathModelAgent 📐</h1>
 <p align="center">
-    <img src="./docs/icon.png" height="250px">
-</p>
-<h4 align="center">
-    专为数学建模设计的 Agent<br>
-    自动完成数学建模，生成一份完整的可以直接提交的论文。
-</h4>
-
-<h5 align="center">简体中文 | <a href="README_EN.md">English</a></h5>
-
-## 🌟 愿景：
-
-3 天的比赛时间变为 1 小时
-自动完整一份可以获奖级别的建模论文
-
-<p align="center">
-    <img src="./docs/chat.png">
-    <img src="./docs/coder.png">
+  <a href="README.md"><img alt="English" src="https://img.shields.io/badge/English-default-111827?style=for-the-badge"></a>
+  <a href="README.zh-CN.md"><img alt="简体中文" src="https://img.shields.io/badge/简体中文-切换语言-10b981?style=for-the-badge"></a>
 </p>
 
-## ✨ 功能特性
-
-- 🔍 自动分析问题，数学建模，编写代码，纠正错误，撰写论文
-- 💻 Code Interpreter
-    - local Interpreter: 基于 jupyter , 代码保存为 notebook 方便再编辑
-    - 云端 code interpreter: [E2B](https://e2b.dev/) 和 [daytona](https://app.daytona.io/)
-- 📝 生成一份编排好格式的论文
-- 🤝 multi-agents: 建模手，代码手，论文手等
-- 🔄 multi-llms: 每个 agent 设置不同的、合适的模型
-- 🤖 支持所有模型: [litellm](https://docs.litellm.ai/docs/providers)
-- 💰 成本低：workflow agentless，不依赖 agent 框架
-- 🧩 自定义模板：prompt inject 为每个 subtask 单独设置需求
-- 🌐 Web Search: Agent 自主搜索互联网获取真实数据（Tavily API）
-- 📚 RAG 知识库: 从本地知识库检索建模方法、代码模板、论文写作参考（ChromaDB + Rerank）
-- 🤝 HIL 人机协作: 关键节点暂停等待用户审批，支持 6 种决策动作（confirm / edit / regenerate / ask / skip / abort）
-- 🛡️ 四层容错: 有限重试 → Fallback Hand Off → Evaluator Shadow Mode → Feedback Rerun
-- 🖥️ GUI 产品化后端基础: 统一 JSON 配置、逐项 API 通断测试、结构化题目上传、任务进度事件、产物预览/下载
-
-
-
-
----
----
-
-我在平台中托管了一个在线版本，方便使用，欢迎体验：
-
-https://mathmodel.top/home
-
-## SKILLS
-
-项目蒸馏成完全由 SKILLS 驱动
-不再做 Harness 层
-
-### Intro
-
-MathModelAgent SKILL —— 直接在 Harness 中驱动的数学建模自动化方案.
-
-**💰 开源免费，接入任意模型**
-完全开源免费，可接入任何模型。
-
-**🧠 端到端自动化**
-从问题分析、建模、编码、绘图到论文排版和验收，一条 `/1start-mathmodel` 命令全自动完成，中间阶段自动串联，无需人工干预。
-
-**📄 17 套 Typst 论文模板**
-内置中英文主流赛事模板（国赛、华数杯、华为杯、MCM/ICM 等），自动匹配赛事类型，生成排版精良、可直接提交的 PDF 论文。
-
-**📐 内置建模知识库**
-包含完整的建模规范、模型选择决策树（AHP、TOPSIS、ARIMA、GA 等）、常见易错模式和 MCM/ICM 评分标准，每个阶段自动参考，降低模型幻觉。
-
-**✅ 9 步自动验收**
-文本泄漏检测 → 数值一致性校验 → Typst 编译 → PDF 可视化检查，确保论文零低级错误。
-
-**🔧 可组合、可扩展**
-每个阶段是独立 Skill，可单独调用（如只跑分析、只写论文）；模板和知识库可自由扩展；支持 Typst 生态排版。
-
-
-
-### Install & Usage
-
-安装 SKILL
-```
-npx skills add jihe520/MathModelAgent --all
-```
-
-运行
-```
-// claude
-claude --dangerously-skip-permissions
-claude: /1start-mathmodel 完成这个数学建模任务
-
-// codex
-codex --yolo
-codex: $start-mathmodel 完成这个数学建模任务
-```
-
-其他命令
-```
-/doctor:  检查环境配置
-/typst-author: typst 知识
-```
-
-
-### What Can You Contribute?
-
-项目以后只会做 SKLLS 层的迭代和优化，不会再做其他部分。
-
-如果你希望寻找 Agent 开发岗位，你可以研究该项目 Agent 设计并贡献，我会尽量合并.
-
-你能做什么：
-
-- 优化贡献比赛 typst Template , 你可以找一些 LaTeX 转成 typst
-- 优化 SKILL Workflow
-- 在不同的 Harness 上测试 不同的 LLM, 提供反馈和案例放在 example 仓库
-
-Harness SKILL 的优化需要大量黑盒测试和调优.
-
-
-### Thinking
-
-- 两年前，我做了一个 Mulit-Agent 的数学建模项目并开源出来，收到了社区的欢迎和很多 star, 感谢大家支持。
-- 感谢开源的 latex 模板，我在此基础上转化为 typst 模板
-- 此 SKILL 是一个基础模板，你可以基于此构建更适合你自己的 MathModel SKILL
-- For Agent DEVs : 两年前，我都是自己实现一套 Agent 框架，现在和以后更多的 Agent 产品直接基于 Harness 如 Codex / Claude Code / Pi  + SKILLS 来构建
-
----
----
-
-
-
-
-
-## 🚀 后期计划
-
-- [x] 添加并完成 webui、cli
-- [x] 完善的教程、文档
-- [ ] 提供 web 服务
-- [ ] 英文支持（美赛）
-- [ ] 集成 latex 模板
-- [ ] 接入视觉模型
-- [x] 添加正确文献引用
-- [x] 更多测试案例
-- [x] docker 部署
-- [ ] human in loop ( HIL ): 关键节点暂停等待用户审批，支持 6 种决策动作（confirm/edit/regenerate/ask/skip/abort）
-  <!-- TODO: 数据模型已实现，但工作流集成不完整 -->
-- [ ] feedback: 评估器评分 + 反馈注入重跑，先 Writer 后 Coder
-  <!-- TODO: 核心逻辑未实现，仅有 Agent 基类中的 TODO 注释 -->
-- [x] codeinterpreter 接入云端 如 e2b 等供应商..
-- [ ] 多语言: R 语言, matlab
-- [ ] 绘图 napki,draw.io,plantuml,svg, mermaid.js
-- [ ] 添加 benchmark
-- [ ] web search tool: Tavily API 搜索互联网获取真实数据
-  <!-- NOTE: 原计划 Tavily API 未实现，当前使用 OpenAlex 替代 -->
-- [ ] RAG 知识库: ChromaDB + Rerank 检索建模方法、代码模板、论文写作参考
-  <!-- TODO: 仅配置项存在，核心检索逻辑未实现 -->
-- [ ] A2A hand off: Fallback 自动切换备用模型 + 有限重试 + Evaluator Shadow Mode
-  <!-- TODO: 配置项和核心逻辑均未实现，仅有基础重试机制 -->
-- [ ] chat / agent mode
-
-## 视频demo
-
-<video src="https://github.com/user-attachments/assets/954cb607-8e7e-45c6-8b15-f85e204a0c5d"></video>
-
-> [!CAUTION]
-> 项目处于实验探索迭代demo阶段，有许多需要改进优化改进地方，我(项目作者)很忙，有时间会优化更新
-> 欢迎贡献
-
-
-## 📖 使用教程
-
-
-提供三种部署方式，请选择最适合你的方案：
-1. [docker(最简单)](#-方案一docker-部署推荐最简单)
-2. [本地部署](#-方案二-本地部署)
-3. [脚本本地部署(社区)](#-方案三自动脚本部署来自社区)
-
-
-下载项目
-
-```bash
-git clone https://github.com/jihe520/MathModelAgent.git # 克隆项目
-```
-
-
-> 如果你想运行 命令行版本 cli 切换到 [master](https://github.com/jihe520/MathModelAgent/tree/master) 分支,部署更简单，但未来不会更新
-
-
-
-### 🐳 方案一：Docker 部署（推荐：安全简单）
-
-> 确保电脑安装了 docker 环境
-
-1. 启动服务
-
-在项目文件夹下运行:
-
-```bash
-docker-compose up
-```
-
-2. 访问
-
-现在你可以访问：
-- 前端界面：http://localhost:5173
-- 后端API：http://localhost:8000
-
-3. 配置
-
-侧边栏 -> 头像 -> API Key
-
-### GUI 产品化配置与后端 API
-
-当前 GUI 产品化路线采用一个本地 JSON 文件集中管理运行配置：
-
-- 提交到仓库的是 `backend/mcm_agent_config.example.json`，只包含字段模板，不包含密钥。
-- 用户真实配置写入 `backend/mcm_agent_config.local.json`，该文件已被 `.gitignore` 忽略。
-- RAG 知识库目录默认是 `backend/data/rag_cases/`，仓库只保留空目录占位，等待用户导入优秀范文。
-
-后端已提供 `/api/gui` 前缀下的 GUI 基础接口：
-
-- `GET /api/gui/config`：读取已脱敏配置。
-- `PUT /api/gui/config`：保存配置到 ignored local JSON。
-- `POST /api/gui/config/test-provider`：测试单个 provider 通断，用于 GUI 中每个 API 配置行旁边的测试按钮。
-- `POST /api/gui/workspaces`：创建一次建模任务工作区。
-- `POST /api/gui/workspaces/{task_id}/files`：按 `problem`、`attachment`、`template`、`requirement`、`chat` 分类上传文件。
-- `GET /api/gui/workspaces/{task_id}/inputs`：读取本次任务上传文件的多模态输入清单。
-- `GET /api/gui/workspaces/{task_id}/inputs/preview`：预览文本/表格输入，其他类型返回元数据提示。
-- `POST /api/gui/workspaces/{task_id}/planning/draft`：基于题目文本和工作区输入生成结构化执行计划草案。
-- `GET /api/gui/workspaces/{task_id}/planning`：读取当前工作区的 `planning/plan.json`。
-- `POST /api/gui/workspaces/{task_id}/planning/action`：记录计划阶段 HIL 动作。
-- `GET|POST /api/gui/workspaces/{task_id}/chat/messages`：读取或保存工作区对话消息。
-- `GET|POST /api/gui/workspaces/{task_id}/revision/requests`：读取或创建用户审稿修订请求。
-- `POST /api/gui/workspaces/{task_id}/run|stop|resume`：启动、停止或记录继续修改请求。
-- `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
-- `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
-- `POST /api/gui/workspaces/{task_id}/artifacts/package`：生成最终提交包。
-- `GET /api/gui/workspaces/{task_id}/artifacts/package/download`：下载提交包 zip。
-
-前端 GUI MVP 已提供 `/studio` 工作台。推荐使用流程：
-
-1. 在“设置”中填写 LLM、搜索、论文网站、文档解析和数据平台配置。
-2. 点击每个 API 配置行右侧的“测试”按钮，逐项确认通断。
-3. 按 RAG 面板中的结构填充 `backend/data/rag_cases/` 范文知识库。
-4. 新建工作区，上传本次赛题、附件、格式样例和额外要求。
-5. 在执行计划区点击“生成计划”，让 Agent 先产出结构化 plan。
-6. 在对话区和 Agent 讨论，通过 HIL 动作确认、修改、重生成或中止计划。
-7. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
-8. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
-
-对话与修订循环会写入当前工作区，刷新页面后仍可追踪：
-
-- `conversation/messages.jsonl`：保存用户和 Agent 的对话消息。
-- `review/revision_requests.jsonl`：保存用户对初稿、图表、代码或计划的修订请求。
-- `review/revision_summary.md`：把修订队列整理为可读摘要，供后续 Agent 续跑读取。
-
-上传区会维护 `input/input_manifest.json`，让用户看到 Agent 将读取的完整任务包。Manifest 记录每个文件的分类、路径、大小、SHA256 和轻量预览。当前分类包括 `text`、`table`、`image`、`pdf`、`document`、`archive` 和 `binary`；文本和 CSV/TSV 会直接给出预览，PDF、图片和 Office 文档的深度 OCR/解析留给 MinerU 或后续多模态 provider。
-
-产物区支持生成最终提交包。点击“生成提交包”会写入 `exports/artifact_manifest.json`，并创建 `exports/submission_package.zip`。提交包会跳过隐藏文件、输入文件和页面对话记录，只包含可提交/可审查的论文、图表、代码、数据表、日志和 manifest。
-
-计划阶段支持 6 种 HIL 动作：
-
-- `confirm`：确认当前计划，状态变为 `approved`，作为后续运行的首选输入。
-- `edit`：保存用户在计划文本框里的修改，状态保持 `draft`。
-- `regenerate`：根据当前题目文本重新生成计划草案。
-- `ask`：把聊天输入或计划文本作为问题记录给 Agent。
-- `skip`：跳过计划审批，适合临时快速试跑。
-- `abort`：中止当前计划，不建议继续运行。
-
-Studio 在计划未确认时仍允许手动开始运行，但会提醒用户先确认计划。计划文件会保存到任务工作区的 `planning/plan.json`，并在进度事件中留下操作记录。
-
-RAG 范文知识库要求每个案例一个文件夹。文件夹名称会作为 `case_id`，只能使用安全路径字符。每个案例至少包含：
-
-- `problem.pdf`、`problem.md`、`problem.txt` 或 `problem.docx`
-- `paper.pdf`、`paper.md`、`paper.txt` 或 `paper.docx`
-
-可选内容包括 `data/` 附件目录和 `notes.md` 方法笔记。点击 Studio 的“扫描案例”会检查结构；点击“重建索引”会生成本地 `.rag_manifest.json` 和 `.rag_index.json`，供后续写作和建模检索使用。
-
-### 💻 方案二: 本地部署（推荐项目开发者部署）
-
-> 确保电脑中安装好 Python, Nodejs, **Redis** 环境
-
-
-
-#### step1:安装依赖
-
-1. 下载Redis(记得设置环境变量redis_path)
-
-- windows 下载地址：<https://github.com/tporadowski/redis/releases>
-- linux or mac 下载地址：<https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/>
-
-2. 安装后端依赖
-
-```bash
-# ============ 安装依赖 ============
-# 1. 切换到 backend 目录
-cd backend
-# 2. 安装 uv 包管理器（推荐）
-pip install uv
-# 3. 同步项目依赖
-uv sync
-```
-
-```bash
-# ============ MacOS / Linux 安装命令 ============
-# 1. 设置环境变量
-export ENV=DEV
-export REDIS_URL=redis://localhost:6379/0
-```
-
-```powershell
-# ============ Windows PowerShell 安装命令 ============
-# 1. 设置环境变量
-$env:ENV="DEV"
-$env:REDIS_URL="redis://localhost:6379/0"
-# 2. 设置 PowerShell 执行策略策略为 RemoteSigned
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-# 3. 创建虚拟环境
-python -m venv venv
-```
-
-3.安装前端依赖
-
-```bash
-cd frontend # 切换到 frontend 目录下
-npm install -g pnpm
-pnpm i
-```
-
-#### step2:启动项目
-
-**windows用户直接双击运行项目中的win_start.bat 即可启动项目**
-
-1.启动 Redis
-
-```bash
-redis-server
-```
-
-2.启动后端
-
-```bash
-# ============ MacOS / Linux 安装命令 ============
-# 1. 激活虚拟环境
-source .venv/bin/activate
-# 2. 启动后端服务（激活后可直接使用 uvicorn 命令）
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --ws-ping-interval 60 --ws-ping-timeout 120 --reload
-```
-
-```bash
-# ============ Windows PowerShell 安装命令 ============
-# 1. 切换到 backend 目录
-cd .\backend\
-# 2. 激活虚拟环境
-.\venv\Scripts\Activate.ps1
-# 3. 启动后端服务
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --ws-ping-interval 60 --ws-ping-timeout 120 --reload
-```
-
-
-3.启动前端
-
-```bash
-cd .\frontend\
-pnpm run dev
-```
-
-修改 backend/.env.dev 的环境变量 **REDIS_URL**
-
-配置API Key
-
-1. 使用 WebUI
-    侧边栏 -> 头像 -> API Key
-2. 修改 backend/.env.dev 文件
-    先将.env.example文件 改为.env.dev
-    然后在.env.dev中 修改各 Agent API 配置
-
-
-
-### 🚀 方案三：自动脚本部署（来自社区）
-有没有自动部署的脚本 ？
-[mmaAutoSetupRun](https://github.com/Fitia-UCAS/mmaAutoSetupRun)
-
-
-
-[教程](./docs/md/tutorial.md)
-
-运行的结果和产生在`backend/project/work_dir/xxx/*`目录下
-- notebook.ipynb: 保存运行过程中产生的代码
-- res.md: 保存最后运行产生的结果为 markdown 格式
-
-需要自定义自定义提示词模板 template ？
-Prompt Inject : [prompt](./backend/app/config/md_template.toml)
-
-网络状况太差难以配置Docker等设置？
-网络不畅时的配置过程示例：[网络环境极差时的MathModelAgent配置过程](docs/md/网络环境极差时的MathModelAgent配置过程.md)
-
-
-## ⚙️ 新功能配置
-
-MathModelAgent 支持以下可选功能，默认已关闭，开启后未配置外部依赖时自动降级跳过。详见 [升级说明](./升级说明.md)。
-
-| 功能 | 配置开关 | 说明 |
-|------|----------|------|
-| Web Search | `SEARCH_ENABLED` + `TAVILY_API_KEY` | Agent 自主联网搜索真实数据（Tavily API） |
-| RAG 知识库 | `RAG_ENABLED` | 从本地知识库检索建模方法和代码模板（ChromaDB + Rerank） |
-| HIL 人机协作 | `HIL_ENABLED` | 关键节点暂停等待用户审批，支持 6 种决策动作 |
-| Fallback Hand Off | `FALLBACK_*` 系列 | 主模型故障自动切换备用模型 |
-| Evaluator + Feedback | `EVALUATOR_*` 系列 | 输出质量评估 + 反馈重跑 |
-
-快速启用 Web Search：注册 [Tavily](https://tavily.com) 获取 API Key，在 `backend/.env.dev` 中设置 `TAVILY_API_KEY=tvly-xxx`。
-
-## 🤝 贡献和开发
-
-[DeepWiki](https://deepwiki.com/jihe520/MathModelAgent) | [Zread](https://zread.ai/jihe520/MathModelAgent)
-
-
-> [!TIP]
-> 如果你有跑出来好的案例可以提交 PR 在该仓库下:
-> [MathModelAgent-Example](https://github.com/jihe520/MathModelAgent-Example)
-
-- 项目处于**开发实验阶段**（我有时间就会更新），变更较多，还存在许多 Bug，我正着手修复。
-- 希望大家一起参与，让这个项目变得更好
-- 非常欢迎使用和提交  **PRs** 和 issues 
-- 需求参考 后期计划
-
-clone 项目后，下载 **Todo Tree** 插件，可以查看代码中所有具体位置的 todo
-
-`.cursor/*` 有项目整体架构、rules、mcp 可以方便开发使用
-
-## 📄 版权License
-
-个人免费使用，请勿商业用途，商业用途联系我（作者）
-
-[License](./docs/md/License.md)
-
-## 🙏 Reference
-
-Thanks to the following projects:
-- [OpenCodeInterpreter](https://github.com/OpenCodeInterpreter/OpenCodeInterpreter/tree/main)
-- [TaskWeaver](https://github.com/microsoft/TaskWeaver)
-- [Code-Interpreter](https://github.com/MrGreyfun/Local-Code-Interpreter/tree/main)
-- [Latex](https://github.com/Veni222987/MathModelingLatexTemplate/tree/main)
-- [Agent Laboratory](https://github.com/SamuelSchmidgall/AgentLaboratory)
-- [ai-manus](https://github.com/Simpleyyt/ai-manus)
-
-## 其他
-
-### 💖 Sponsor
-
-[☕️ 给作者买一杯咖啡](./docs/md/sponser.md)
-
-https://linux.do/
-
-#### 企业
+<p align="center">
+  <img src="docs/assets/mathmodelagent-hero.svg" alt="MathModelAgent animated research-to-paper workflow" width="100%">
+</p>
 
 <div align="center">
-    <a href="https://share.302.ai/UoTruU" target="_blank">
-    <img src="./docs/302ai.jpg">
-    </a>
+
+# MathModelAgent
+
+**A GUI-first multi-agent workspace for MCM / ICM mathematical modeling.**
+
+Configure APIs, import exemplary papers, upload this year's problem package, discuss a plan with the agent, then generate a claim-aware paper with code, sources, QA reports, and exportable artifacts.
+
+[Quick Start](#quick-start) · [How It Works](#how-it-works) · [GUI Guide](#gui-guide) · [Configuration](#configuration) · [RAG Library](#rag-knowledge-base) · [Roadmap](#roadmap)
+
+![Backend](https://img.shields.io/badge/backend-FastAPI-009688)
+![Frontend](https://img.shields.io/badge/frontend-Vue%203%20%2B%20Vite-42b883)
+![Python](https://img.shields.io/badge/python-3.12%2B-3776ab)
+![Package Manager](https://img.shields.io/badge/backend-uv-6f42c1)
+![Package Manager](https://img.shields.io/badge/frontend-pnpm-f69220)
+![Status](https://img.shields.io/badge/status-active%20research%20prototype-f59e0b)
+
 </div>
 
-[302.AI](https://share.302.ai/UoTruU) 是一个按用量付费的企业级AI资源平台，提供市场上最新、最全面的AI模型和API，以及多种开箱即用的在线AI应用
+---
 
-#### 用户
+## What This Project Does
 
-[danmo-tyc](https://github.com/danmo-tyc)
+MathModelAgent is designed around the real workflow of a mathematical modeling contest:
 
-### 👥 GROUP
+1. The user configures model, search, document parsing, academic, and data APIs.
+2. The user imports excellent previous papers into a structured RAG knowledge base.
+3. The user uploads the current problem, attachments, data files, templates, and extra requirements.
+4. The agent parses the task package and drafts an implementation plan.
+5. The user and agent discuss the plan before execution.
+6. The pipeline researches, models, writes, checks, and packages the submission.
+7. The user reviews generated artifacts and asks for revisions.
 
-有问题可以进群问
+The current version is a mature product skeleton: it has a GUI, runtime configuration, structured uploads, RAG indexing, plan-driven pipeline stages, source registration, modeling strategy selection, claim-aware drafting, paper QA, artifact packaging, and benchmark smoke tests. Some provider adapters are still offline-safe facades and should be connected to real APIs for production contest use.
 
-点击链接加入腾讯频道【MathModelAgent】：https://pd.qq.com/s/7rfbai3au
+---
 
-点击链接加入群聊 779159301【MathModelAgent】：https://qm.qq.com/q/Fw2cCJPoki
+## Feature Overview
 
-[Discord](https://discord.gg/3Jmpqg5J)
+| Area | What is available now |
+|---|---|
+| GUI Studio | A `/studio` workspace for API settings, RAG, task uploads, planning, chat, progress, source registration, artifacts, and run control. |
+| Runtime config | One ignored local JSON file for real API keys: `backend/mcm_agent_config.local.json`. The repository only commits `backend/mcm_agent_config.example.json`. |
+| Provider tests | Each API row in the GUI has a test button. Responses mask secrets. |
+| RAG library | User-filled case folders under `backend/data/rag_cases/`, with deterministic local vector indexing and retrieval logs. |
+| Problem package | Upload problem PDFs, data, templates, images, archives, and extra requirements into a structured workspace manifest. |
+| Input parsing | Generates `input/parsed/parsed_manifest.json`, `problem.md`, normalized table copies, asset metadata, and parse QA. |
+| Pipeline | Runs `intake -> parse -> rag -> plan -> model -> solve -> write -> qa -> export`, with state and progress events. |
+| Source registry | Registers web, academic, and official-data sources as stable `source_id` records for later citation and claim evidence. |
+| Modeling MVP | Classifies problem type, ranks model candidates, writes model decisions, creates solver skeletons, and records results. |
+| Claim-aware writing | Generates `paper/claim_plan.json` and a paper draft with claim markers across abstract, introduction, assumptions, model, results, limitations, and conclusion. |
+| Paper QA | Checks required sections, claim markers, long lines, wide tables, long formulas, and TeX engine availability. |
+| Export package | Builds a submission zip with papers, figures, code, logs, data tables, QA reports, and manifests. |
+| Regression checks | Benchmark smoke suite verifies that the core artifacts are still produced by the pipeline. |
 
-> [!CAUTION]
-> 免责声明: 注意，AI 生成仅供参考，目前水平直接参加国赛获奖是不可能的，但我相信 AI 和 该项目未来的成长。
+---
+
+## Quick Start
+
+### Option A: Docker Compose
+
+Docker is the easiest way to launch the full stack.
+
+```bash
+git clone https://github.com/jsyzlbw/MathModelAgent.git
+cd MathModelAgent
+cp backend/mcm_agent_config.example.json backend/mcm_agent_config.local.json
+docker compose up --build
+```
+
+Open:
+
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Studio workspace: [http://localhost:5173/studio](http://localhost:5173/studio)
+- Backend API: [http://localhost:8000](http://localhost:8000)
+- Backend docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### Option B: Local Development
+
+Run the backend:
+
+```bash
+cd backend
+cp mcm_agent_config.example.json mcm_agent_config.local.json
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --ws-ping-interval 60 --ws-ping-timeout 120
+```
+
+Run the frontend in another terminal:
+
+```bash
+cd frontend
+pnpm install
+pnpm dev --host
+```
+
+Open [http://localhost:5173/studio](http://localhost:5173/studio).
+
+---
+
+## GUI Guide
+
+### 1. Configure APIs
+
+Open the Studio page and go to the API configuration panel. Fill in the providers you want to use, then click the test button beside each row.
+
+Supported configuration groups:
+
+- LLM roles: `coordinator`, `modeler`, `coder`, `writer`
+- Search: Tavily, Brave Search, Exa, Firecrawl
+- Academic: OpenAlex, Semantic Scholar
+- Document parsing: MinerU REST or CLI
+- Humanization: UShallPass-compatible endpoint
+- Official data: World Bank, OECD, UNData, FRED, US Census, NOAA, NASA POWER, Open-Meteo, Overpass
+- RAG: Voyage embedding and reranker settings
+
+The GUI writes real secrets to:
+
+```text
+backend/mcm_agent_config.local.json
+```
+
+That file is ignored by git. Do not commit it.
+
+### 2. Fill the RAG Knowledge Base
+
+Prepare the case folders described in [RAG Knowledge Base](#rag-knowledge-base), then click **Vector Index** in Studio. The backend creates local chunk and vector files and writes retrieval logs.
+
+### 3. Create a Workspace
+
+In Studio, create a task workspace and upload the current problem package:
+
+- Problem statement
+- Provided data
+- Figures or attachments
+- Required format examples
+- Extra constraints from the contest or your team
+- Optional images for multimodal discussion
+
+The backend records everything in:
+
+```text
+project/work_dir/<task_id>/input/input_manifest.json
+```
+
+### 4. Parse Inputs
+
+Click **Parse Inputs**. The parser creates:
+
+```text
+project/work_dir/<task_id>/input/parsed/parsed_manifest.json
+project/work_dir/<task_id>/input/parsed/problem.md
+project/work_dir/<task_id>/input/parsed/tables/
+project/work_dir/<task_id>/input/parsed/assets_manifest.json
+project/work_dir/<task_id>/input/parsed/parse_qa.md
+```
+
+Text and table files are parsed directly. PDF, image, and Office files are registered as provider-ready assets for MinerU or future multimodal providers.
+
+### 5. Discuss the Plan
+
+Ask the agent to think through the problem before execution. The planning stage is intended to be agent-led:
+
+- The agent studies the uploaded problem.
+- It checks RAG cases and registered sources.
+- It proposes a modeling and writing plan.
+- The user can confirm, edit, regenerate, ask questions, skip, or abort.
+
+Conversation and revision records are saved under:
+
+```text
+project/work_dir/<task_id>/conversation/messages.jsonl
+project/work_dir/<task_id>/review/revision_requests.jsonl
+project/work_dir/<task_id>/review/revision_summary.md
+```
+
+### 6. Run the Pipeline
+
+Click **Start Run**. In demo mode, the current pipeline runs these stages:
+
+```text
+intake -> parse -> rag -> plan -> model -> solve -> write -> qa -> export
+```
+
+Progress is visible through:
+
+```text
+project/work_dir/<task_id>/pipeline/state.json
+project/work_dir/<task_id>/progress_events.jsonl
+project/work_dir/<task_id>/artifact_registry.json
+```
+
+This is the part that keeps the user from thinking the app froze: every stage records what it is doing and which artifacts it created.
+
+### 7. Review and Export Artifacts
+
+Important outputs include:
+
+```text
+project/work_dir/<task_id>/reports/model_candidates.json
+project/work_dir/<task_id>/reports/model_decision.md
+project/work_dir/<task_id>/results/results_registry.json
+project/work_dir/<task_id>/paper/claim_plan.json
+project/work_dir/<task_id>/res.md
+project/work_dir/<task_id>/review/paper_qa_report.json
+project/work_dir/<task_id>/review/paper_qa_report.md
+project/work_dir/<task_id>/exports/submission_package.zip
+```
+
+The export package skips private inputs and chat logs by default, while keeping reviewable papers, figures, code, result tables, QA reports, logs, and manifests.
+
+---
+
+## RAG Knowledge Base
+
+The RAG library is intentionally empty in git. Add one folder per excellent modeling case:
+
+```text
+backend/data/rag_cases/
+  2024-mcm-c-ocean-plastic/
+    problem.pdf
+    paper.pdf
+    data/
+      observations.csv
+    notes.md
+```
+
+Recommended structure:
+
+| File or folder | Required | Purpose |
+|---|---:|---|
+| `problem.pdf`, `problem.md`, or `problem.txt` | Yes | Original contest problem. |
+| `paper.pdf`, `paper.md`, or `paper.txt` | Yes | High-quality solution paper. |
+| `data/` | No | Provided data or cleaned data. |
+| `notes.md` | No | Modeling methods, tricks, scoring notes, or personal annotations. |
+
+After adding cases, use the GUI **Vector Index** button or the RAG API to rebuild the index. The current indexer uses deterministic local embeddings for reliable offline tests; the runtime config already contains Voyage fields for the next real embedding adapter.
+
+---
+
+## How It Works
+
+```mermaid
+flowchart LR
+  User["User"] --> Config["API Config JSON"]
+  User --> RAG["RAG Case Library"]
+  User --> Upload["Problem Package Upload"]
+  Config --> Studio["GUI Studio"]
+  RAG --> Studio
+  Upload --> Parse["Input Parsing"]
+  Parse --> Plan["Agent-led Plan"]
+  Studio --> Plan
+  Plan --> Model["Model Strategy"]
+  Model --> Solve["Solver Skeleton + Results"]
+  Solve --> Paper["Claim-aware Paper Draft"]
+  Paper --> QA["Paper / LaTeX QA"]
+  QA --> Export["Submission Package"]
+  Export --> Review["User Review + Revision Loop"]
+  Review --> Plan
+```
+
+### Main backend services
+
+| Service | Responsibility |
+|---|---|
+| `RuntimeConfigRegistry` | Reads JSON runtime configuration and provides provider-specific settings. |
+| `InputManifestService` | Tracks uploaded files, categories, hashes, and previews. |
+| `InputParsingService` | Converts the uploaded package into parsed problem artifacts. |
+| `RagVectorIndexService` | Builds and queries local vector-like indexes for the RAG library. |
+| `PipelineService` | Orchestrates the visible stage-by-stage workflow. |
+| `SourceRegistryService` | Stores stable source records. |
+| `SourceProviderService` | Provides offline-safe facades for search, academic, and official-data providers. |
+| `ModelingStrategyService` | Detects problem types and ranks modeling candidates. |
+| `SolverTemplateService` | Writes solver skeletons and result registries. |
+| `ClaimPlanService` | Builds the paper evidence and claim chain. |
+| `PaperDraftService` | Writes claim-aware paper drafts. |
+| `PaperQAService` | Checks draft and formatting risks. |
+| `BenchmarkSuiteService` | Runs smoke benchmarks for regression stability. |
+
+---
+
+## Configuration
+
+Copy the example config:
+
+```bash
+cp backend/mcm_agent_config.example.json backend/mcm_agent_config.local.json
+```
+
+Then edit it directly or use the GUI.
+
+Minimal LLM example:
+
+```json
+{
+  "llm": {
+    "coordinator": {
+      "api_type": "openai-chat",
+      "api_key": "YOUR_KEY",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4.1",
+      "context_window": 128000,
+      "max_tokens": null
+    }
+  }
+}
+```
+
+Recommended provider coverage for serious use:
+
+| Need | Suggested provider |
+|---|---|
+| Main reasoning and writing | OpenAI-compatible chat model with long context |
+| Search | Tavily, Exa, Brave Search, Firecrawl |
+| Academic literature | OpenAlex and Semantic Scholar |
+| Document extraction | MinerU |
+| Embedding and rerank | Voyage `voyage-4-large` and `rerank-2.5` |
+| Official data | FRED, US Census, NOAA, World Bank, Open-Meteo, Overpass |
+
+Never commit `backend/mcm_agent_config.local.json`, `.env.dev`, contest files, uploaded papers, or generated work directories.
+
+---
+
+## API Reference Highlights
+
+The GUI uses `/api/gui` routes. Useful endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/gui/config` | Read masked config. |
+| `PUT /api/gui/config` | Save local JSON config. |
+| `POST /api/gui/config/test-provider` | Test one provider row. |
+| `POST /api/gui/workspaces` | Create a workspace. |
+| `POST /api/gui/workspaces/{task_id}/files` | Upload categorized files. |
+| `GET /api/gui/workspaces/{task_id}/inputs` | List workspace inputs. |
+| `POST /api/gui/workspaces/{task_id}/inputs/parse` | Parse uploaded inputs. |
+| `POST /api/gui/workspaces/{task_id}/run` | Start demo or real workflow. |
+| `GET /api/gui/workspaces/{task_id}/pipeline/status` | Read pipeline state. |
+| `GET /api/gui/workspaces/{task_id}/events` | Read progress events. |
+| `GET /api/gui/workspaces/{task_id}/artifacts` | List artifacts. |
+| `POST /api/gui/workspaces/{task_id}/artifacts/package` | Build submission package. |
+| `POST /api/gui/workspaces/{task_id}/sources/query` | Register external sources. |
+| `POST /api/gui/rag/vector/rebuild` | Rebuild RAG vector index. |
+| `POST /api/gui/rag/query` | Query RAG vector index. |
+
+Open [http://localhost:8000/docs](http://localhost:8000/docs) after starting the backend for the full OpenAPI schema.
+
+---
+
+## Development
+
+Backend tests:
+
+```bash
+cd backend
+uv run pytest -q
+```
+
+Frontend build:
+
+```bash
+cd frontend
+pnpm build
+```
+
+Recent verification:
+
+```text
+backend: 66 passed, 1 skipped
+frontend: vue-tsc -b && vite build passed
+```
+
+---
+
+## Project Layout
+
+```text
+MathModelAgent/
+  backend/
+    app/
+      config/              # runtime JSON config and settings
+      routers/             # FastAPI routers
+      services/            # pipeline, RAG, parsing, sources, QA
+      tests/               # regression and service tests
+    data/rag_cases/        # user-filled excellent-paper knowledge base
+    mcm_agent_config.example.json
+  frontend/
+    src/pages/studio/      # GUI-first workspace
+    src/apis/              # frontend API clients
+  docs/
+    assets/                # README animation and documentation assets
+    superpowers/plans/     # route-level implementation plans
+```
+
+---
+
+## Roadmap
+
+The project is ready for the next maturity phase:
+
+- Connect real provider adapters for Voyage embeddings/rerank, Tavily, Exa, Brave, Firecrawl, OpenAlex, Semantic Scholar, FRED, US Census, NOAA, MinerU, and Overpass.
+- Upgrade document extraction from metadata placeholders to real PDF/table/image parsing.
+- Expand modeling agents for prediction, optimization, evaluation, simulation, graph, time-series, and statistical inference tasks.
+- Add executable solver validation, figure generation, sensitivity analysis, and result consistency checks.
+- Turn paper QA into automatic LaTeX/PDF repair for compile errors, formula overflow, table overflow, figure placement, and page limits.
+- Add GUI controls for real/demo mode, benchmark runs, provider health dashboard, and revision replay.
+- Build a public benchmark set of MCM/ICM tasks to measure parsing, planning, modeling, writing, and QA quality.
+
+---
+
+## Limitations
+
+MathModelAgent is an active research prototype. It can already run a complete visible workflow, but it should not be treated as a guaranteed contest-winning system. Human review remains necessary, especially for model validity, data assumptions, numerical correctness, citations, and final paper quality.
+
+The safest usage pattern is: let the agent do the heavy mechanical work, then let humans make the mathematical judgment calls.
+
+---
+
+## License
+
+See the repository license file for details.
