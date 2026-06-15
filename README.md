@@ -226,6 +226,8 @@ docker-compose up
 - `POST /api/gui/workspaces/{task_id}/planning/draft`：基于题目文本和工作区输入生成结构化执行计划草案。
 - `GET /api/gui/workspaces/{task_id}/planning`：读取当前工作区的 `planning/plan.json`。
 - `POST /api/gui/workspaces/{task_id}/planning/action`：记录计划阶段 HIL 动作。
+- `GET|POST /api/gui/workspaces/{task_id}/chat/messages`：读取或保存工作区对话消息。
+- `GET|POST /api/gui/workspaces/{task_id}/revision/requests`：读取或创建用户审稿修订请求。
 - `POST /api/gui/workspaces/{task_id}/run|stop|resume`：启动、停止或记录继续修改请求。
 - `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
 - `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
@@ -240,6 +242,12 @@ docker-compose up
 6. 在对话区和 Agent 讨论，通过 HIL 动作确认、修改、重生成或中止计划。
 7. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
 8. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
+
+对话与修订循环会写入当前工作区，刷新页面后仍可追踪：
+
+- `conversation/messages.jsonl`：保存用户和 Agent 的对话消息。
+- `review/revision_requests.jsonl`：保存用户对初稿、图表、代码或计划的修订请求。
+- `review/revision_summary.md`：把修订队列整理为可读摘要，供后续 Agent 续跑读取。
 
 计划阶段支持 6 种 HIL 动作：
 

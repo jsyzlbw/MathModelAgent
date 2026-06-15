@@ -72,6 +72,16 @@ RAG 知识库保持“仓库空目录，用户自行填充”的产品约束。�
 - `confirm` 后计划状态变为 `approved`；`edit` 保存用户修订；`regenerate` 重新起草；`ask` 记录用户追问；`skip` 允许快速试跑；`abort` 中止当前计划。
 - 开始运行时，如果计划未确认，Studio 会提示用户，但 MVP 阶段允许用户手动覆盖。
 
+## 1.6 O 路线已落地对话与修订循环
+
+Studio 对话区和“修改”动作现在具备工作区级持久化能力：
+
+- 对话消息写入 `conversation/messages.jsonl`，后端提供 `/api/gui/workspaces/{task_id}/chat/messages` 读写接口。
+- 用户对计划、论文、图表或代码的修改意见写入 `review/revision_requests.jsonl`，后端提供 `/api/gui/workspaces/{task_id}/revision/requests` 读写接口。
+- 后端同步维护 `review/revision_summary.md`，把修订队列整理为后续 Agent 续跑可读的 Markdown 摘要。
+- 创建对话消息会写入 `chat.message_added` 进度事件；创建修订请求会写入 `revision.request_queued` 进度事件。
+- Studio 的“修改”按钮会创建结构化修订请求，并继续调用旧的 `/resume` 事件作为兼容层。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
@@ -1159,7 +1169,8 @@ Supervisor-Skills 检查表映射：
 
 关键产物：
 
-- `review/revision_requests.md`
+- `conversation/messages.jsonl`
+- `review/revision_requests.jsonl`
 - `review/revision_summary.md`
 - `paper/main_revised.pdf`
 
