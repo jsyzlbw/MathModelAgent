@@ -185,6 +185,16 @@ Pipeline 的建模阶段现在有明确的题型识别和 solver 产物契约：
 - Pipeline 的 `qa` 阶段已接入 Paper QA，并把 JSON/Markdown QA 报告登记到 artifact registry。
 - 这为后续自动 LaTeX 编译、页数检查、公式溢出修复和 PDF 视觉 QA 留出了稳定入口。
 
+## 1.17 Z 路线已落地 Benchmark / Regression Stability
+
+项目现在具备最小可重复回归基准：
+
+- 新增 `BenchmarkSuiteService`，内置 smoke case：预测需求并优化资源分配。
+- Benchmark 会创建隔离工作区、运行 plan-driven pipeline，并检查关键产物是否存在。
+- 检查项包括 `res.md`、`paper/claim_plan.json`、`artifact_registry.json`、`review/paper_qa_report.json` 和 `exports/submission_package.zip`。
+- 报告写入 `benchmarks/latest_report.json` 和 `benchmarks/latest_report.md`。
+- 这为后续真实样题集、多题型评分、CI 回归和论文质量评估提供了稳定入口。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
