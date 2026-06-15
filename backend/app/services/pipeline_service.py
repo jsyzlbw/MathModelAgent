@@ -13,6 +13,7 @@ from app.services.input_manifest_service import InputManifestService
 from app.services.input_parsing_service import InputParsingService
 from app.services.modeling_strategy_service import ModelingStrategyService
 from app.services.paper_draft_service import PaperDraftService
+from app.services.paper_qa_service import PaperQAService
 from app.services.planning_service import PlanningService
 from app.services.rag_vector_index_service import RagVectorIndexService
 from app.services.solver_template_service import SolverTemplateService
@@ -248,6 +249,7 @@ class PipelineService:
         ]
 
     def _stage_qa(self) -> list[dict[str, Any]]:
+        PaperQAService(self.workspace).run()
         path = self.workspace / "review" / "reviewer_report.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -263,7 +265,21 @@ class PipelineService:
                 path="review/reviewer_report.md",
                 producer="PipelineQA",
                 depends_on=["paper_draft"],
-            )
+            ),
+            self._artifact_record(
+                artifact_id="paper_qa_report",
+                type_="paper_qa_report",
+                path="review/paper_qa_report.json",
+                producer="PipelineQA",
+                depends_on=["paper_draft"],
+            ),
+            self._artifact_record(
+                artifact_id="paper_qa_markdown",
+                type_="paper_qa_report",
+                path="review/paper_qa_report.md",
+                producer="PipelineQA",
+                depends_on=["paper_draft"],
+            ),
         ]
 
     def _stage_export(self) -> list[dict[str, Any]]:

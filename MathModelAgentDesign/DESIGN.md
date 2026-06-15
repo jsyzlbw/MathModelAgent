@@ -175,6 +175,16 @@ Pipeline 的建模阶段现在有明确的题型识别和 solver 产物契约：
 - 草稿正文会写入 `[claim:<claim_id>]` 标记，并把关键结论链接回 evidence artifact 和 source_id。
 - Pipeline 的 `write` 阶段已改为 claim-aware draft，并把 `paper/claim_plan.json` 登记到 artifact registry。
 
+## 1.16 Y 路线已落地 Paper / LaTeX QA
+
+论文生成后现在会自动执行格式与提交前 QA：
+
+- 新增 `PaperQAService`，读取 `res.md` 并生成 `review/paper_qa_report.json` 和 `review/paper_qa_report.md`。
+- QA 检查包括必需章节、claim marker、过长行、宽表格、长公式和本地 TeX 编译器可用性。
+- 如果本地没有 `latexmk` 或 `pdflatex`，系统记录 warning，而不是中断 pipeline。
+- Pipeline 的 `qa` 阶段已接入 Paper QA，并把 JSON/Markdown QA 报告登记到 artifact registry。
+- 这为后续自动 LaTeX 编译、页数检查、公式溢出修复和 PDF 视觉 QA 留出了稳定入口。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
