@@ -4,7 +4,13 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from app.routers import modeling_router, ws_router, common_router, files_router
+from app.routers import (
+    common_router,
+    config_router,
+    files_router,
+    modeling_router,
+    ws_router,
+)
 from app.utils.log_util import logger
 from fastapi.staticfiles import StaticFiles
 from app.utils.cli import get_ascii_banner, center_cli_str
@@ -34,6 +40,7 @@ app.include_router(modeling_router.router)
 app.include_router(ws_router.router)
 app.include_router(common_router.router)
 app.include_router(files_router.router)
+app.include_router(config_router.router, prefix="/api/gui")
 
 
 # 跨域 CORS

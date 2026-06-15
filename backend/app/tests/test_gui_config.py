@@ -3,7 +3,107 @@
 import json
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
 from app.config.runtime_config import RuntimeConfigStore, mask_secret
+from app.main import app
+
+
+def make_config_client(tmp_path: Path) -> TestClient:
+    from app.routers.config_router import get_runtime_config_store
+
+    example = tmp_path / "mcm_agent_config.example.json"
+    local = tmp_path / "mcm_agent_config.local.json"
+    example.write_text(
+        json.dumps(
+            {
+                "llm": {
+                    "coordinator": {
+                        "api_type": "openai-chat",
+                        "api_key": "",
+                        "base_url": "https://api.openai.com/v1",
+                        "model": "",
+                    }
+                },
+                "search": {"tavily": {"api_key": ""}},
+                "academic": {"openalex": {"email": "", "api_key": ""}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def override_store() -> RuntimeConfigStore:
+        return RuntimeConfigStore(example_path=example, local_path=local)
+
+    app.dependency_overrides[get_runtime_config_store] = override_store
+    return TestClient(app)
+
+
+def test_gui_config_endpoint_masks_api_keys(tmp_path: Path) -> None:
+    client = make_config_client(tmp_path)
+
+    response = client.put(
+        "/api/gui/config",
+        json={"llm": {"coordinator": {"api_key": "sk-secret", "model": "gpt-4o"}}},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["llm"]["coordinator"]["api_key_configured"] is True
+    assert body["llm"]["coordinator"]["api_key_preview"].endswith("cret")
+    assert body["llm"]["coordinator"]["model"] == "gpt-4o"
+    assert "sk-secret" not in response.text
+
+    get_response = client.get("/api/gui/config")
+    assert get_response.status_code == 200
+    assert "sk-secret" not in get_response.text
+
+    app.dependency_overrides.clear()
+
+
+def test_gui_config_test_provider_reports_missing_key(tmp_path: Path) -> None:
+    client = make_config_client(tmp_path)
+
+    response = client.post(
+        "/api/gui/config/test-provider",
+        json={"provider": "coordinator"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "coordinator"
+    assert body["ok"] is False
+    assert body["status"] == "missing_config"
+    assert "API Key" in body["message"]
+
+    app.dependency_overrides.clear()
+
+
+def test_gui_config_test_provider_accepts_config_payload_without_persisting(
+    tmp_path: Path,
+) -> None:
+    client = make_config_client(tmp_path)
+
+    response = client.post(
+        "/api/gui/config/test-provider",
+        json={
+            "provider": "tavily",
+            "config": {"search": {"tavily": {"api_key": "tvly-secret"}}},
+            "dry_run": True,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["provider"] == "tavily"
+    assert body["status"] == "configured"
+    assert body["ok"] is True
+    assert "tvly-secret" not in response.text
+
+    stored = client.get("/api/gui/config").json()
+    assert stored["search"]["tavily"]["api_key_configured"] is False
+
+    app.dependency_overrides.clear()
 
 
 def test_runtime_config_store_writes_local_json_and_masks_secrets(
