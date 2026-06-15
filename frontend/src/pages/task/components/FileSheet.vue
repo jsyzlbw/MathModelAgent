@@ -22,7 +22,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-	Archive,
 	Download,
 	File,
 	FileText,
@@ -50,9 +49,6 @@ const loadingFiles = ref(false);
 
 /** 当前正在下载的文件名 */
 const downloadingFile = ref<string | null>(null);
-
-/** 是否正在下载全部文件 */
-const downloadingAll = ref(false);
 
 // ---- Methods ----
 
@@ -145,39 +141,7 @@ const downloadSingleFile = async (filename: string) => {
 	}
 };
 
-/** 下载所有文件（压缩包） */
-const downloadAll = async () => {
-	try {
-		downloadingAll.value = true;
-		const res = await getAllFilesDownloadUrl(taskId as string);
-		if (res.data?.download_url) {
-			// 创建隐藏的链接元素并触发下载
-			const link = document.createElement("a");
-			link.href = res.data.download_url;
-			link.download = `task_${taskId}_files.zip`;
-			link.target = "_blank";
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
-
-			toast({
-				title: "下载成功",
-				description: "所有文件压缩包开始下载",
-			});
-		} else {
-			throw new Error("获取下载链接失败");
-		}
-	} catch (error) {
-		console.error("下载所有文件失败:", error);
-		toast({
-			title: "下载失败",
-			description: "下载所有文件时出现错误",
-			variant: "destructive",
-		});
-	} finally {
-		downloadingAll.value = false;
-	}
-};
+void getAllFilesDownloadUrl;
 </script>
 
 <template>
@@ -218,15 +182,15 @@ const downloadAll = async () => {
           <div v-else class="space-y-2">
             <div v-for="(file, index) in fileList" :key="index"
               class="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-              <component :is="getFileIcon(file.name || file.filename || '')"
+              <component :is="getFileIcon(String(file.name || file.filename || ''))"
                 class="w-5 h-5 text-gray-600 flex-shrink-0" />
               <div class="flex-1 min-w-0">
                 <div class="font-medium text-sm truncate">
                   {{ file.name || file.filename || 'Unknown' }}
                 </div>
                 <div class="text-xs text-gray-500 flex gap-2">
-                  <span v-if="file.size">{{ formatFileSize(file.size) }}</span>
-                  <span v-if="file.modified_time">{{ new Date(file.modified_time).toLocaleDateString()
+                  <span v-if="typeof file.size === 'number'">{{ formatFileSize(file.size) }}</span>
+                  <span v-if="typeof file.modified_time === 'string'">{{ new Date(file.modified_time).toLocaleDateString()
                     }}</span>
                   <span v-if="file.type">{{ file.type }}</span>
                 </div>
@@ -234,10 +198,10 @@ const downloadAll = async () => {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Button @click="downloadSingleFile(file.name || file.filename || '')"
-                      :disabled="downloadingFile === (file.name || file.filename || '')" size="sm" variant="ghost"
+                    <Button @click="downloadSingleFile(String(file.name || file.filename || ''))"
+                      :disabled="downloadingFile === String(file.name || file.filename || '')" size="sm" variant="ghost"
                       class="flex-shrink-0">
-                      <RefreshCw v-if="downloadingFile === (file.name || file.filename || '')"
+                      <RefreshCw v-if="downloadingFile === String(file.name || file.filename || '')"
                         class="w-4 h-4 animate-spin" />
                       <Download v-else class="w-4 h-4" />
                     </Button>
