@@ -1,0 +1,100 @@
+{
+  "llm": {
+    "coordinator": {
+      "api_type": "openai-chat",
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "",
+      "context_window": 128000,
+      "max_tokens": null
+    },
+    "modeler": {
+      "api_type": "openai-chat",
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "",
+      "context_window": 128000,
+      "max_tokens": null
+    },
+    "coder": {
+      "api_type": "openai-chat",
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "",
+      "context_window": 128000,
+      "max_tokens": null
+    },
+    "writer": {
+      "api_type": "openai-chat",
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "",
+      "context_window": 128000,
+      "max_tokens": null
+    }
+  },
+  "search": {
+    "tavily": {
+      "api_key": ""
+    },
+    "brave": {
+      "api_key": ""
+    },
+    "exa": {
+      "api_key": ""
+    },
+    "firecrawl": {
+      "api_key": ""
+    }
+  },
+  "academic": {
+    "openalex": {
+      "email": "",
+      "api_key": ""
+    },
+    "semantic_scholar": {
+      "api_key": ""
+    }
+  },
+  "document": {
+    "mineru": {
+      "mode": "fake",
+      "api_base_url": "",
+      "api_key": "",
+      "cli": "mineru"
+    }
+  },
+  "humanizer": {
+    "api_base_url": "https://leahloveswriting.xyz",
+    "api_key": ""
+  },
+  "official_data": {
+    "world_bank": {},
+    "oecd": {},
+    "undata": {},
+    "fred": {
+      "api_key": ""
+    },
+    "us_census": {
+      "api_key": ""
+    },
+    "noaa": {
+      "api_key": ""
+    },
+    "nasa_power": {},
+    "open_meteo": {},
+    "overpass": {}
+  },
+  "rag": {
+    "knowledge_base_dir": "data/rag_cases",
+    "top_k": 5,
+    "embedding_model": "BAAI/bge-m3",
+    "reranker_model": "BAAI/bge-reranker-v2-m3"
+  },
+  "runtime": {
+    "max_chat_turns": 20,
+    "max_retries": 2,
+    "server_host": "http://localhost:8000",
+    "default_language": "zh"
+  }
+}
