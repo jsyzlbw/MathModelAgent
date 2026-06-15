@@ -88,8 +88,14 @@
   "rag": {
     "knowledge_base_dir": "data/rag_cases",
     "top_k": 5,
-    "embedding_model": "BAAI/bge-m3",
-    "reranker_model": "BAAI/bge-reranker-v2-m3"
+    "embedding_provider": "voyage",
+    "embedding_model": "voyage-4-large",
+    "embedding_api_key": "",
+    "embedding_base_url": "https://api.voyageai.com/v1",
+    "reranker_provider": "voyage",
+    "reranker_model": "rerank-2.5",
+    "reranker_api_key": "",
+    "reranker_base_url": "https://api.voyageai.com/v1"
   },
   "runtime": {
     "max_chat_turns": 20,

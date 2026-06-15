@@ -227,6 +227,13 @@ const apiRowDefs: ApiRowDefinition[] = [
 		fields: [{ key: "email", label: "Email", placeholder: "you@example.com" }],
 	},
 	{
+		provider: "semantic_scholar",
+		label: "Semantic Scholar",
+		path: ["academic", "semantic_scholar"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
 		provider: "mineru",
 		label: "MinerU",
 		path: ["document", "mineru"],
@@ -243,6 +250,46 @@ const apiRowDefs: ApiRowDefinition[] = [
 		path: ["humanizer"],
 		secretKey: "api_key",
 		fields: [{ key: "api_base_url", label: "Base URL" }],
+	},
+	{
+		provider: "embedding",
+		label: "Embedding",
+		path: ["rag"],
+		secretKey: "embedding_api_key",
+		fields: [
+			{ key: "embedding_provider", label: "Provider", placeholder: "voyage" },
+			{ key: "embedding_model", label: "Model", placeholder: "voyage-4-large" },
+			{ key: "embedding_base_url", label: "Base URL", placeholder: "https://api.voyageai.com/v1" },
+		],
+	},
+	{
+		provider: "reranker",
+		label: "Reranker",
+		path: ["rag"],
+		secretKey: "reranker_api_key",
+		fields: [
+			{ key: "reranker_provider", label: "Provider", placeholder: "voyage" },
+			{ key: "reranker_model", label: "Model", placeholder: "rerank-2.5" },
+			{ key: "reranker_base_url", label: "Base URL", placeholder: "https://api.voyageai.com/v1" },
+		],
+	},
+	{
+		provider: "world_bank",
+		label: "World Bank",
+		path: ["official_data", "world_bank"],
+		fields: [],
+	},
+	{
+		provider: "oecd",
+		label: "OECD",
+		path: ["official_data", "oecd"],
+		fields: [],
+	},
+	{
+		provider: "undata",
+		label: "UNData",
+		path: ["official_data", "undata"],
+		fields: [],
 	},
 	{
 		provider: "fred",
@@ -263,6 +310,24 @@ const apiRowDefs: ApiRowDefinition[] = [
 		label: "NOAA",
 		path: ["official_data", "noaa"],
 		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "nasa_power",
+		label: "NASA POWER",
+		path: ["official_data", "nasa_power"],
+		fields: [],
+	},
+	{
+		provider: "open_meteo",
+		label: "Open-Meteo",
+		path: ["official_data", "open_meteo"],
+		fields: [],
+	},
+	{
+		provider: "overpass",
+		label: "OSM Overpass",
+		path: ["official_data", "overpass"],
 		fields: [],
 	},
 ];

@@ -14,6 +14,7 @@ from app.services.redis_manager import redis_manager
 from app.tools.notebook_serializer import NotebookSerializer
 from app.core.flows import Flows
 from app.core.llm.llm_factory import LLMFactory
+from app.config.runtime_registry import get_runtime_registry
 
 
 class WorkFlow:
@@ -55,12 +56,18 @@ class MathModelWorkFlow(WorkFlow):
         self.task_id = problem.task_id
         self.work_dir = create_work_dir(self.task_id)
 
-        llm_factory = LLMFactory(self.task_id)
+        registry = get_runtime_registry()
+        coordinator_config = registry.llm_role("coordinator")
+        modeler_config = registry.llm_role("modeler")
+        coder_config = registry.llm_role("coder")
+        writer_config = registry.llm_role("writer")
+
+        llm_factory = LLMFactory(self.task_id, registry=registry)
         coordinator_llm, modeler_llm, coder_llm, writer_llm = llm_factory.get_all_llms()
 
         coordinator_agent = CoordinatorAgent(
             self.task_id, coordinator_llm,
-            context_window=settings.COORDINATOR_CONTEXT_WINDOW,
+            context_window=coordinator_config.context_window,
             cancel_event=self.cancel_event,
         )
 
@@ -94,7 +101,7 @@ class MathModelWorkFlow(WorkFlow):
 
         modeler_agent = ModelerAgent(
             self.task_id, modeler_llm,
-            context_window=settings.MODELER_CONTEXT_WINDOW,
+            context_window=modeler_config.context_window,
             cancel_event=self.cancel_event,
         )
 
@@ -116,11 +123,12 @@ class MathModelWorkFlow(WorkFlow):
             timeout=3000,
         )
         
-        assert settings.OPENALEX_EMAIL is not None, "OPENALEX_EMAIL 未配置"
+        openalex_config = registry.openalex()
+        assert openalex_config["email"] is not None, "OpenAlex email 未配置"
         scholar = OpenAlexScholar(
             task_id=self.task_id,
-            email=settings.OPENALEX_EMAIL,
-            api_key=settings.OPENALEX_API_KEY,
+            email=openalex_config["email"],
+            api_key=openalex_config["api_key"],
         )
 
         await redis_manager.publish_message(
@@ -138,10 +146,10 @@ class MathModelWorkFlow(WorkFlow):
             task_id=problem.task_id,
             model=coder_llm,
             work_dir=self.work_dir,
-            max_chat_turns=settings.MAX_CHAT_TURNS,
-            max_retries=settings.MAX_RETRIES,
+            max_chat_turns=registry.runtime_int("max_chat_turns", settings.MAX_CHAT_TURNS),
+            max_retries=registry.runtime_int("max_retries", settings.MAX_RETRIES),
             code_interpreter=code_interpreter,
-            context_window=settings.CODER_CONTEXT_WINDOW,
+            context_window=coder_config.context_window,
             cancel_event=self.cancel_event,
         )
 
@@ -151,7 +159,7 @@ class MathModelWorkFlow(WorkFlow):
             comp_template=problem.comp_template,
             format_output=problem.format_output,
             scholar=scholar,
-            context_window=settings.WRITER_CONTEXT_WINDOW,
+            context_window=writer_config.context_window,
             cancel_event=self.cancel_event,
         )
 

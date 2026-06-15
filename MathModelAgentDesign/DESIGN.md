@@ -102,6 +102,17 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 后端提供 `/api/gui/workspaces/{task_id}/artifacts/package` 和 `/artifacts/package/download`。
 - Studio 产物卡提供“生成提交包”和“下载”按钮，并在生成后展示 zip 路径、文件数和大小。
 
+## 1.9 R 路线已落地 Runtime Config 全链路接入
+
+统一 JSON 配置现在不只是 GUI 设置页的存储文件，而是旧 Agent 工作流的优先运行配置来源：
+
+- 新增 `RuntimeConfigRegistry`，从 `backend/mcm_agent_config.example.json` 和 ignored `backend/mcm_agent_config.local.json` 合并读取配置。
+- `LLMFactory` 会优先使用 JSON 中的 coordinator、modeler、coder、writer 配置创建 LLM，并保留 `.env.dev` 作为兼容兜底。
+- `MathModelWorkFlow` 的 context window、max chat turns、max retries 和 OpenAlex 凭据也通过 runtime registry 读取。
+- `mcm_agent_config.example.json` 补充 Voyage embedding/rerank 字段：provider、model、api key、base URL。
+- Studio 设置页补充 Embedding、Reranker、Semantic Scholar、World Bank、OECD、UNData、NASA POWER、Open-Meteo 和 OSM Overpass 行。
+- Provider smoke 支持 `missing_config`、`configured`、`auth_error`、`quota_error`、`network_error`、`unknown_provider` 等稳定状态，且不会向前端返回真实密钥。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
