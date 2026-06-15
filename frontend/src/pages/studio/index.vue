@@ -9,6 +9,7 @@ import {
 	type RevisionRequestRecord,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
+	type WorkspaceInputItem,
 	type WorkspacePlan,
 	appendChatMessage,
 	applyWorkspacePlanAction,
@@ -24,6 +25,8 @@ import {
 	getGuiConfig,
 	listChatMessages,
 	listRevisionRequests,
+	listWorkspaceInputs,
+	previewWorkspaceInput,
 	readWorkspaceArtifact,
 	rebuildRagIndex,
 	resumeWorkspace,
@@ -120,6 +123,9 @@ const eventCursor = ref(0);
 const artifacts = ref<ArtifactItem[]>([]);
 const artifactPreview = ref<{ path: string; content: string } | null>(null);
 const artifactLoading = ref(false);
+const workspaceInputs = ref<WorkspaceInputItem[]>([]);
+const inputPreview = ref<WorkspaceInputItem | null>(null);
+const inputLoading = ref(false);
 const ragCases = ref<RagCaseItem[]>([]);
 const ragGuide = ref<RagGuideResponse | null>(null);
 const ragLoading = ref(false);
@@ -310,6 +316,32 @@ const latestRevisionRequest = computed(() => {
 	return revisionRequests.value[revisionRequests.value.length - 1];
 });
 
+const displayedWorkspaceInputs = computed(() => {
+	if (workspaceInputs.value.length) return workspaceInputs.value;
+	return [
+		{
+			kind: "problem" as const,
+			path: "input/problem/problem.pdf",
+			filename: "problem.pdf",
+			suffix: ".pdf",
+			category: "pdf",
+			size: 0,
+			sha256: "",
+			preview: "等待上传题目文件。",
+		},
+		{
+			kind: "attachment" as const,
+			path: "input/attachments/data.csv",
+			filename: "data.csv",
+			suffix: ".csv",
+			category: "table",
+			size: 0,
+			sha256: "",
+			preview: "等待上传题目附件。",
+		},
+	];
+});
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 	return !!value && typeof value === "object" && !Array.isArray(value);
 };
@@ -466,13 +498,19 @@ const createWorkspace = async () => {
 		eventCursor.value = 0;
 		artifacts.value = [];
 		artifactPreview.value = null;
+		workspaceInputs.value = [];
+		inputPreview.value = null;
 		currentPlan.value = null;
 		revisionRequests.value = [];
 		toast({
 			title: "工作区已创建",
 			description: response.data.task_id,
 		});
-		await Promise.all([refreshChatMessages(), refreshRevisionRequests()]);
+		await Promise.all([
+			refreshChatMessages(),
+			refreshRevisionRequests(),
+			refreshWorkspaceInputs(),
+		]);
 	} catch (error) {
 		console.error("创建工作区失败:", error);
 		toast({
@@ -511,6 +549,16 @@ const refreshRevisionRequests = async () => {
 		revisionRequests.value = response.data.requests;
 	} catch (error) {
 		console.error("读取修订请求失败:", error);
+	}
+};
+
+const refreshWorkspaceInputs = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await listWorkspaceInputs(activeTaskId.value);
+		workspaceInputs.value = response.data.manifest.items;
+	} catch (error) {
+		console.error("读取输入清单失败:", error);
 	}
 };
 
@@ -609,6 +657,8 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 			...uploadStatus.value,
 			[kind]: response.data.files,
 		};
+		workspaceInputs.value = response.data.manifest?.items ?? workspaceInputs.value;
+		await refreshWorkspaceInputs();
 		toast({
 			title: "上传完成",
 			description: `${files.length} 个文件已写入 ${kind}`,
@@ -623,6 +673,19 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 	} finally {
 		uploadingKind.value = null;
 		input.value = "";
+	}
+};
+
+const openWorkspaceInput = async (item: WorkspaceInputItem) => {
+	if (!activeTaskId.value || !workspaceInputs.value.length) return;
+	inputLoading.value = true;
+	try {
+		const response = await previewWorkspaceInput(activeTaskId.value, item.path);
+		inputPreview.value = response.data.item;
+	} catch (error) {
+		console.error("读取输入预览失败:", error);
+	} finally {
+		inputLoading.value = false;
 	}
 };
 
@@ -1060,6 +1123,42 @@ onBeforeUnmount(() => {
               </label>
             </div>
             <Textarea v-model="problemText" class="mt-3 min-h-24" placeholder="也可以直接粘贴题目文本或补充要求。" />
+            <div class="mt-3 rounded-md border bg-white p-3">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <div class="text-sm font-medium">输入清单</div>
+                <Button size="xs" variant="outline" :disabled="!activeTaskId" @click="refreshWorkspaceInputs">
+                  刷新
+                </Button>
+              </div>
+              <div class="grid gap-2 md:grid-cols-2">
+                <button
+                  v-for="item in displayedWorkspaceInputs"
+                  :key="item.path"
+                  type="button"
+                  class="rounded-md border p-2 text-left transition-colors hover:bg-zinc-50"
+                  :class="{ 'opacity-60': !workspaceInputs.length }"
+                  :disabled="!workspaceInputs.length"
+                  @click="openWorkspaceInput(item)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="truncate font-mono text-xs">{{ item.path }}</span>
+                    <span class="shrink-0 rounded border px-1.5 py-0.5 text-[10px] uppercase text-zinc-600">
+                      {{ item.category }}
+                    </span>
+                  </div>
+                  <div class="mt-1 text-xs text-zinc-500">
+                    {{ item.kind }} · {{ item.size }} bytes
+                  </div>
+                </button>
+              </div>
+              <div class="mt-2 rounded-md border bg-zinc-950 p-3 text-zinc-50">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <span class="font-mono text-xs text-zinc-400">{{ inputPreview?.path || "input-preview" }}</span>
+                  <span class="text-xs text-zinc-500">{{ inputLoading ? "读取中" : inputPreview?.category || "" }}</span>
+                </div>
+                <pre class="max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5">{{ inputPreview?.preview || "选择已上传输入后预览轻量内容。PDF、图片和 Office 文档先展示元数据，深度解析由后续文档 provider 处理。" }}</pre>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

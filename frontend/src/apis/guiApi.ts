@@ -28,6 +28,23 @@ export interface UploadedWorkspaceFile {
 	size: number;
 }
 
+export interface WorkspaceInputItem {
+	kind: WorkspaceFileKind;
+	path: string;
+	filename: string;
+	suffix: string;
+	category: string;
+	size: number;
+	sha256: string;
+	preview: string;
+}
+
+export interface WorkspaceInputManifest {
+	version: number;
+	generated_at: string;
+	items: WorkspaceInputItem[];
+}
+
 export type WorkspaceFileKind =
 	| "problem"
 	| "attachment"
@@ -156,9 +173,26 @@ export function uploadWorkspaceFiles(
 	return request.post<{
 		task_id: string;
 		files: UploadedWorkspaceFile[];
+		manifest?: WorkspaceInputManifest;
 	}>(`/api/gui/workspaces/${taskId}/files`, formData, {
 		params: { kind },
 		headers: { "Content-Type": "multipart/form-data" },
+	});
+}
+
+export function listWorkspaceInputs(taskId: string) {
+	return request.get<{
+		task_id: string;
+		manifest: WorkspaceInputManifest;
+	}>(`/api/gui/workspaces/${taskId}/inputs`);
+}
+
+export function previewWorkspaceInput(taskId: string, path: string) {
+	return request.get<{
+		task_id: string;
+		item: WorkspaceInputItem;
+	}>(`/api/gui/workspaces/${taskId}/inputs/preview`, {
+		params: { path },
 	});
 }
 
