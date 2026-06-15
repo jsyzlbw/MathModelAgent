@@ -3,7 +3,9 @@
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.main import app
 from app.services.planning_service import PlanningService
 
 
@@ -60,3 +62,45 @@ def test_planning_service_rejects_invalid_action(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unsupported HIL action"):
         service.apply_action("approve")
+
+
+def test_planning_api_creates_gets_and_confirms_plan(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    task_id = "plan-task"
+    workspace = tmp_path / "project" / "work_dir" / task_id
+    (workspace / "input" / "problem").mkdir(parents=True)
+    (workspace / "input" / "problem" / "problem.txt").write_text(
+        "Forecast demand.",
+        encoding="utf-8",
+    )
+    client = TestClient(app)
+
+    draft_response = client.post(f"/api/gui/workspaces/{task_id}/planning/draft")
+    get_response = client.get(f"/api/gui/workspaces/{task_id}/planning")
+    action_response = client.post(
+        f"/api/gui/workspaces/{task_id}/planning/action",
+        json={"action": "confirm"},
+    )
+
+    assert draft_response.status_code == 200
+    assert draft_response.json()["status"] == "draft"
+    assert get_response.json()["problem_summary"] == "Forecast demand."
+    assert action_response.json()["status"] == "approved"
+
+
+def test_planning_api_rejects_invalid_action(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    task_id = "plan-task"
+    workspace = tmp_path / "project" / "work_dir" / task_id
+    workspace.mkdir(parents=True)
+    client = TestClient(app)
+
+    response = client.post(
+        f"/api/gui/workspaces/{task_id}/planning/action",
+        json={"action": "approve"},
+    )
+
+    assert response.status_code == 400
