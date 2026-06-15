@@ -17,6 +17,7 @@ from app.routers.modeling_router import (
 )
 from app.schemas.enums import CompTemplate, FormatOutPut
 from app.services.input_manifest_service import InputManifestService
+from app.services.input_parsing_service import InputParsingService
 from app.utils.common_utils import create_task_id, create_work_dir, ensure_safe_task_id
 
 router = APIRouter(tags=["gui-workspace"])
@@ -183,6 +184,44 @@ async def preview_workspace_input(task_id: str, path: str) -> dict:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="文件不存在") from exc
     return {"task_id": safe_task_id, "item": item}
+
+
+@router.post("/workspaces/{task_id}/inputs/parse")
+async def parse_workspace_inputs(task_id: str) -> dict:
+    """Parse uploaded inputs into normalized agent-readable artifacts."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    append_progress_event(
+        safe_task_id,
+        stage="inputs.parse_started",
+        message="开始解析工作区输入文件",
+        work_dir=root,
+    )
+    parsed = InputParsingService(root).parse()
+    append_progress_event(
+        safe_task_id,
+        stage="inputs.parse_completed",
+        message="输入解析完成",
+        level="success",
+        metadata={
+            "artifact_count": len(parsed.get("artifacts", [])),
+            "issue_count": parsed.get("qa", {}).get("issue_count", 0),
+        },
+        work_dir=root,
+    )
+    return {"task_id": safe_task_id, **parsed}
+
+
+@router.get("/workspaces/{task_id}/inputs/parsed")
+async def get_workspace_parsed_inputs(task_id: str) -> dict:
+    """Return current parsed input manifest."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    return {"task_id": safe_task_id, **InputParsingService(root).load()}
 
 
 def _read_problem_text(root: Path) -> str:

@@ -45,6 +45,39 @@ export interface WorkspaceInputManifest {
 	items: WorkspaceInputItem[];
 }
 
+export interface WorkspaceParsedInputs {
+	task_id: string;
+	version: number;
+	status: string;
+	generated_at: string;
+	source_manifest_path: string;
+	problem_path: string;
+	artifacts: Array<{
+		kind: string;
+		path: string;
+		source_path: string;
+		status: string;
+	}>;
+	assets: Array<{
+		source_path: string;
+		filename: string;
+		category: string;
+		size: number;
+		sha256: string;
+		status: string;
+	}>;
+	qa: {
+		issue_count: number;
+		report_path: string;
+		issues: Array<{
+			severity: string;
+			code: string;
+			path: string;
+			message: string;
+		}>;
+	};
+}
+
 export type WorkspaceFileKind =
 	| "problem"
 	| "attachment"
@@ -205,6 +238,18 @@ export function previewWorkspaceInput(taskId: string, path: string) {
 	}>(`/api/gui/workspaces/${taskId}/inputs/preview`, {
 		params: { path },
 	});
+}
+
+export function parseWorkspaceInputs(taskId: string) {
+	return request.post<WorkspaceParsedInputs>(
+		`/api/gui/workspaces/${taskId}/inputs/parse`,
+	);
+}
+
+export function getWorkspaceParsedInputs(taskId: string) {
+	return request.get<WorkspaceParsedInputs>(
+		`/api/gui/workspaces/${taskId}/inputs/parsed`,
+	);
 }
 
 export function runWorkspace(taskId: string, payload: RunWorkspacePayload) {

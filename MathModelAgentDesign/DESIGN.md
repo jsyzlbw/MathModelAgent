@@ -113,6 +113,16 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - Studio 设置页补充 Embedding、Reranker、Semantic Scholar、World Bank、OECD、UNData、NASA POWER、Open-Meteo 和 OSM Overpass 行。
 - Provider smoke 支持 `missing_config`、`configured`、`auth_error`、`quota_error`、`network_error`、`unknown_provider` 等稳定状态，且不会向前端返回真实密钥。
 
+## 1.10 S 路线已落地输入解析与多模态占位
+
+上传区现在可以把 `input/input_manifest.json` 进一步解析为 Agent 可读取的标准产物：
+
+- 新增 `InputParsingService`，读取输入清单并生成 `input/parsed/parsed_manifest.json`。
+- 文本题面会汇总到 `input/parsed/problem.md`，CSV/TSV 表格会复制到 `input/parsed/tables/`。
+- PDF、图片、Office、压缩包和二进制文件会进入 `input/parsed/assets/assets_manifest.json`，并标记为需要 MinerU/OCR/Vision 等 provider 深度解析。
+- 系统会生成 `input/parsed/parse_qa.md`，列出缺失题面文本、需 provider 解析等 QA 提醒。
+- 后端提供 `/api/gui/workspaces/{task_id}/inputs/parse` 和 `/inputs/parsed`；Studio 上传卡新增“解析输入”按钮和 QA 摘要。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先

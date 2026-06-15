@@ -12,6 +12,7 @@ import {
 	type WorkspaceFileKind,
 	type WorkspaceInputItem,
 	type WorkspacePlan,
+	type WorkspaceParsedInputs,
 	appendChatMessage,
 	applyWorkspacePlanAction,
 	createArtifactPackage,
@@ -29,6 +30,7 @@ import {
 	listChatMessages,
 	listRevisionRequests,
 	listWorkspaceInputs,
+	parseWorkspaceInputs,
 	previewWorkspaceInput,
 	readWorkspaceArtifact,
 	rebuildRagIndex,
@@ -131,6 +133,8 @@ const packaging = ref(false);
 const workspaceInputs = ref<WorkspaceInputItem[]>([]);
 const inputPreview = ref<WorkspaceInputItem | null>(null);
 const inputLoading = ref(false);
+const parsedInputs = ref<WorkspaceParsedInputs | null>(null);
+const parsingInputs = ref(false);
 const ragCases = ref<RagCaseItem[]>([]);
 const ragGuide = ref<RagGuideResponse | null>(null);
 const ragLoading = ref(false);
@@ -571,6 +575,7 @@ const createWorkspace = async () => {
 		artifactPackage.value = null;
 		workspaceInputs.value = [];
 		inputPreview.value = null;
+		parsedInputs.value = null;
 		currentPlan.value = null;
 		revisionRequests.value = [];
 		toast({
@@ -729,6 +734,7 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 			[kind]: response.data.files,
 		};
 		workspaceInputs.value = response.data.manifest?.items ?? workspaceInputs.value;
+		parsedInputs.value = null;
 		await refreshWorkspaceInputs();
 		toast({
 			title: "上传完成",
@@ -744,6 +750,29 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 	} finally {
 		uploadingKind.value = null;
 		input.value = "";
+	}
+};
+
+const parseInputs = async () => {
+	if (!activeTaskId.value) return;
+	parsingInputs.value = true;
+	try {
+		const response = await parseWorkspaceInputs(activeTaskId.value);
+		parsedInputs.value = response.data;
+		await refreshEvents();
+		toast({
+			title: "输入解析完成",
+			description: `${response.data.artifacts.length} 个解析产物，${response.data.qa.issue_count} 个 QA 提醒。`,
+		});
+	} catch (error) {
+		console.error("解析输入失败:", error);
+		toast({
+			title: "解析输入失败",
+			description: "请确认已上传题目文件并检查后端服务。",
+			variant: "destructive",
+		});
+	} finally {
+		parsingInputs.value = false;
 	}
 };
 
@@ -1225,10 +1254,20 @@ onBeforeUnmount(() => {
             <Textarea v-model="problemText" class="mt-3 min-h-24" placeholder="也可以直接粘贴题目文本或补充要求。" />
             <div class="mt-3 rounded-md border bg-white p-3">
               <div class="mb-2 flex items-center justify-between gap-2">
-                <div class="text-sm font-medium">输入清单</div>
-                <Button size="xs" variant="outline" :disabled="!activeTaskId" @click="refreshWorkspaceInputs">
-                  刷新
-                </Button>
+                <div>
+                  <div class="text-sm font-medium">输入清单</div>
+                  <div v-if="parsedInputs" class="mt-0.5 text-xs text-zinc-500">
+                    {{ parsedInputs.status }} · {{ parsedInputs.artifacts.length }} artifacts · {{ parsedInputs.qa.issue_count }} QA
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <Button size="xs" variant="outline" :disabled="!activeTaskId" @click="refreshWorkspaceInputs">
+                    刷新
+                  </Button>
+                  <Button size="xs" :disabled="!activeTaskId || parsingInputs || !workspaceInputs.length" @click="parseInputs">
+                    {{ parsingInputs ? "解析中" : "解析输入" }}
+                  </Button>
+                </div>
               </div>
               <div class="grid gap-2 md:grid-cols-2">
                 <button
@@ -1257,6 +1296,13 @@ onBeforeUnmount(() => {
                   <span class="text-xs text-zinc-500">{{ inputLoading ? "读取中" : inputPreview?.category || "" }}</span>
                 </div>
                 <pre class="max-h-32 overflow-auto whitespace-pre-wrap text-xs leading-5">{{ inputPreview?.preview || "选择已上传输入后预览轻量内容。PDF、图片和 Office 文档先展示元数据，深度解析由后续文档 provider 处理。" }}</pre>
+              </div>
+              <div v-if="parsedInputs" class="mt-2 rounded-md border bg-zinc-50 p-3">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <span class="text-xs font-medium">解析 QA</span>
+                  <span class="font-mono text-[11px] text-zinc-500">{{ parsedInputs.problem_path }}</span>
+                </div>
+                <pre class="max-h-28 overflow-auto whitespace-pre-wrap text-xs leading-5 text-zinc-700">{{ parsedInputs.qa.issues.length ? parsedInputs.qa.issues.map((issue) => `[${issue.severity}] ${issue.code} ${issue.path}: ${issue.message}`).join("\n") : "No parsing issues detected." }}</pre>
               </div>
             </div>
           </CardContent>
