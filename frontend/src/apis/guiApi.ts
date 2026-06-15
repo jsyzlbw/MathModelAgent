@@ -109,6 +109,22 @@ export interface PlanActionPayload {
 	content?: string;
 }
 
+export interface ChatMessageRecord {
+	id: string;
+	role: "user" | "agent";
+	content: string;
+	attachments: string[];
+	created_at: string;
+}
+
+export interface RevisionRequestRecord {
+	id: string;
+	instruction: string;
+	target_artifacts: string[];
+	status: string;
+	created_at: string;
+}
+
 export function getGuiConfig() {
 	return request.get<GuiConfig>("/api/gui/config");
 }
@@ -248,4 +264,52 @@ export function applyWorkspacePlanAction(
 			content: payload.content ?? "",
 		},
 	);
+}
+
+export function listChatMessages(taskId: string) {
+	return request.get<{
+		task_id: string;
+		messages: ChatMessageRecord[];
+	}>(`/api/gui/workspaces/${taskId}/chat/messages`);
+}
+
+export function appendChatMessage(
+	taskId: string,
+	payload: {
+		role: "user" | "agent";
+		content: string;
+		attachments?: string[];
+	},
+) {
+	return request.post<{
+		task_id: string;
+		message: ChatMessageRecord;
+	}>(`/api/gui/workspaces/${taskId}/chat/messages`, {
+		role: payload.role,
+		content: payload.content,
+		attachments: payload.attachments ?? [],
+	});
+}
+
+export function listRevisionRequests(taskId: string) {
+	return request.get<{
+		task_id: string;
+		requests: RevisionRequestRecord[];
+	}>(`/api/gui/workspaces/${taskId}/revision/requests`);
+}
+
+export function createRevisionRequest(
+	taskId: string,
+	payload: {
+		instruction: string;
+		target_artifacts?: string[];
+	},
+) {
+	return request.post<{
+		task_id: string;
+		request: RevisionRequestRecord;
+	}>(`/api/gui/workspaces/${taskId}/revision/requests`, {
+		instruction: payload.instruction,
+		target_artifacts: payload.target_artifacts ?? [],
+	});
 }

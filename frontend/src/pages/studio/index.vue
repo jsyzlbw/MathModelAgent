@@ -2,14 +2,18 @@
 import {
 	type GuiConfig,
 	type ArtifactItem,
+	type ChatMessageRecord,
 	type ProgressEvent,
 	type RagCaseItem,
 	type RagGuideResponse,
+	type RevisionRequestRecord,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
 	type WorkspacePlan,
+	appendChatMessage,
 	applyWorkspacePlanAction,
 	createGuiWorkspace,
+	createRevisionRequest,
 	draftWorkspacePlan,
 	getWorkspaceArtifactDownloadUrl,
 	getWorkspaceEvents,
@@ -18,6 +22,8 @@ import {
 	listRagCases,
 	type ProviderTestResponse,
 	getGuiConfig,
+	listChatMessages,
+	listRevisionRequests,
 	readWorkspaceArtifact,
 	rebuildRagIndex,
 	resumeWorkspace,
@@ -86,6 +92,7 @@ interface ApiRowForm {
 }
 
 interface LocalMessage {
+	id?: string;
 	role: "user" | "agent";
 	content: string;
 	createdAt: string;
@@ -120,6 +127,8 @@ const ragRebuilding = ref(false);
 const ragIndexMessage = ref("");
 const currentPlan = ref<WorkspacePlan | null>(null);
 const planningBusy = ref(false);
+const revisionRequests = ref<RevisionRequestRecord[]>([]);
+const revisionBusy = ref(false);
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 const apiRowDefs: ApiRowDefinition[] = [
@@ -296,6 +305,11 @@ const displayedArtifacts = computed(() => {
 	];
 });
 
+const latestRevisionRequest = computed(() => {
+	if (!revisionRequests.value.length) return null;
+	return revisionRequests.value[revisionRequests.value.length - 1];
+});
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 	return !!value && typeof value === "object" && !Array.isArray(value);
 };
@@ -453,10 +467,12 @@ const createWorkspace = async () => {
 		artifacts.value = [];
 		artifactPreview.value = null;
 		currentPlan.value = null;
+		revisionRequests.value = [];
 		toast({
 			title: "工作区已创建",
 			description: response.data.task_id,
 		});
+		await Promise.all([refreshChatMessages(), refreshRevisionRequests()]);
 	} catch (error) {
 		console.error("创建工作区失败:", error);
 		toast({
@@ -466,6 +482,35 @@ const createWorkspace = async () => {
 		});
 	} finally {
 		workspaceCreating.value = false;
+	}
+};
+
+const chatRecordToLocalMessage = (record: ChatMessageRecord): LocalMessage => ({
+	id: record.id,
+	role: record.role,
+	content: record.content,
+	createdAt: record.created_at,
+});
+
+const refreshChatMessages = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await listChatMessages(activeTaskId.value);
+		if (response.data.messages.length) {
+			localMessages.value = response.data.messages.map(chatRecordToLocalMessage);
+		}
+	} catch (error) {
+		console.error("读取对话消息失败:", error);
+	}
+};
+
+const refreshRevisionRequests = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await listRevisionRequests(activeTaskId.value);
+		revisionRequests.value = response.data.requests;
+	} catch (error) {
+		console.error("读取修订请求失败:", error);
 	}
 };
 
@@ -620,12 +665,36 @@ const addLocalMessage = (role: LocalMessage["role"], content: string) => {
 	});
 };
 
-const sendChatMessage = () => {
+const pushPersistedMessage = (message: ChatMessageRecord) => {
+	localMessages.value.push(chatRecordToLocalMessage(message));
+};
+
+const sendChatMessage = async () => {
 	const content = chatInput.value.trim();
 	if (!content) return;
-	addLocalMessage("user", content);
-	addLocalMessage("agent", "收到。我会把这条意见纳入执行计划或后续修改请求。");
-	chatInput.value = "";
+	const taskId = await ensureWorkspace();
+	if (!taskId) return;
+	try {
+		const userResponse = await appendChatMessage(taskId, {
+			role: "user",
+			content,
+		});
+		pushPersistedMessage(userResponse.data.message);
+		const agentResponse = await appendChatMessage(taskId, {
+			role: "agent",
+			content: "收到。我会把这条意见纳入执行计划或后续修改请求。",
+		});
+		pushPersistedMessage(agentResponse.data.message);
+		chatInput.value = "";
+		await refreshEvents();
+	} catch (error) {
+		console.error("保存对话消息失败:", error);
+		toast({
+			title: "消息保存失败",
+			description: "请确认后端服务正在运行。",
+			variant: "destructive",
+		});
+	}
 };
 
 const refreshEvents = async () => {
@@ -712,16 +781,49 @@ const stopRun = async () => {
 };
 
 const requestResume = async () => {
-	if (!activeTaskId.value) return;
+	const taskId = await ensureWorkspace();
+	if (!taskId) return;
 	const instruction = chatInput.value.trim() || planDraft.value;
+	if (!instruction.trim()) return;
+	revisionBusy.value = true;
 	try {
-		const response = await resumeWorkspace(activeTaskId.value, instruction);
-		addLocalMessage("user", instruction);
-		addLocalMessage("agent", response.data.message);
+		const targetArtifacts = artifacts.value
+			.filter((artifact) =>
+				["md", "txt", "tex", "bib", "json", "csv", "log", "py"].includes(
+					artifact.file_type,
+				),
+			)
+			.map((artifact) => artifact.path);
+		const revisionResponse = await createRevisionRequest(taskId, {
+			instruction,
+			target_artifacts: targetArtifacts,
+		});
+		revisionRequests.value = [
+			...revisionRequests.value,
+			revisionResponse.data.request,
+		];
+		const userResponse = await appendChatMessage(taskId, {
+			role: "user",
+			content: instruction,
+		});
+		pushPersistedMessage(userResponse.data.message);
+		const response = await resumeWorkspace(taskId, instruction);
+		const agentResponse = await appendChatMessage(taskId, {
+			role: "agent",
+			content: response.data.message,
+		});
+		pushPersistedMessage(agentResponse.data.message);
 		chatInput.value = "";
 		await refreshEvents();
 	} catch (error) {
 		console.error("发送修改请求失败:", error);
+		toast({
+			title: "修订请求失败",
+			description: "请检查后端服务。",
+			variant: "destructive",
+		});
+	} finally {
+		revisionBusy.value = false;
 	}
 };
 
@@ -984,10 +1086,17 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
               </ScrollArea>
+              <div v-if="latestRevisionRequest" class="rounded-md border bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                最新修订：
+                <span class="font-mono">{{ latestRevisionRequest.status }}</span>
+                <span class="ml-2">{{ latestRevisionRequest.instruction.slice(0, 96) }}</span>
+              </div>
               <div class="flex gap-2">
                 <Input v-model="chatInput" placeholder="输入你的想法、约束或修改意见" />
                 <Button @click="sendChatMessage">发送</Button>
-                <Button variant="outline" :disabled="!activeTaskId" @click="requestResume">修改</Button>
+                <Button variant="outline" :disabled="revisionBusy" @click="requestResume">
+                  {{ revisionBusy ? "记录中" : "修改" }}
+                </Button>
               </div>
             </CardContent>
           </Card>
