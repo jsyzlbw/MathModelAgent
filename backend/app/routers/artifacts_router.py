@@ -7,7 +7,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from app.core.progress_events import read_progress_events
+from app.core.progress_events import append_progress_event, read_progress_events
+from app.services.artifact_package_service import ArtifactPackageService
 from app.utils.common_utils import ensure_safe_task_id
 
 router = APIRouter(tags=["gui-artifacts"])
@@ -93,3 +94,35 @@ async def download_artifact(task_id: str, path: str) -> FileResponse:
     root = _require_workspace(task_id)
     artifact = _safe_artifact_path(root, path)
     return FileResponse(artifact, filename=artifact.name)
+
+
+@router.post("/workspaces/{task_id}/artifacts/package")
+async def create_artifact_package(task_id: str) -> dict:
+    """Create a downloadable submission package from workspace artifacts."""
+    root = _require_workspace(task_id)
+    package = ArtifactPackageService(root).create_package()
+    append_progress_event(
+        task_id,
+        stage="artifacts.package_created",
+        message="提交包已生成",
+        metadata={
+            "package_path": package["package_path"],
+            "artifact_count": package["artifact_count"],
+        },
+        work_dir=root,
+    )
+    return {"task_id": task_id, **package}
+
+
+@router.get("/workspaces/{task_id}/artifacts/package/download")
+async def download_artifact_package(task_id: str) -> FileResponse:
+    """Download the generated submission package."""
+    root = _require_workspace(task_id)
+    package = root / "exports" / "submission_package.zip"
+    if not package.exists() or not package.is_file():
+        raise HTTPException(status_code=404, detail="提交包不存在")
+    return FileResponse(
+        package,
+        filename="submission_package.zip",
+        media_type="application/zip",
+    )

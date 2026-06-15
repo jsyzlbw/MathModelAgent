@@ -3,6 +3,9 @@
 from pathlib import Path
 from zipfile import ZipFile
 
+from fastapi.testclient import TestClient
+
+from app.main import app
 from app.services.artifact_package_service import ArtifactPackageService
 
 
@@ -39,3 +42,43 @@ def test_artifact_package_service_excludes_previous_exports(tmp_path: Path) -> N
     paths = {artifact["path"] for artifact in package["artifacts"]}
     assert "res.pdf" in paths
     assert "exports/submission_package.zip" not in paths
+
+
+def test_artifact_package_api_creates_and_downloads_package(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(app)
+    task_id = client.post("/api/gui/workspaces", json={"title": "Package"}).json()[
+        "task_id"
+    ]
+    root = tmp_path / "project" / "work_dir" / task_id
+    (root / "res.md").write_text("# Paper", encoding="utf-8")
+
+    package_response = client.post(
+        f"/api/gui/workspaces/{task_id}/artifacts/package",
+    )
+    download_response = client.get(
+        f"/api/gui/workspaces/{task_id}/artifacts/package/download",
+    )
+
+    assert package_response.status_code == 200
+    assert package_response.json()["artifact_count"] == 1
+    assert download_response.status_code == 200
+    assert download_response.headers["content-type"] == "application/zip"
+
+
+def test_artifact_package_download_missing_returns_404(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(app)
+    task_id = client.post("/api/gui/workspaces", json={"title": "Package"}).json()[
+        "task_id"
+    ]
+
+    response = client.get(f"/api/gui/workspaces/{task_id}/artifacts/package/download")
+
+    assert response.status_code == 404

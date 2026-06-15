@@ -10,6 +10,8 @@ from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 SKIP_DIRS = {"__pycache__", ".pytest_cache", ".ruff_cache", ".ipynb_checkpoints"}
+SKIP_TOP_LEVEL = {"input", "conversation"}
+SKIP_FILES = {"workspace.json"}
 ALLOWED_SUFFIXES = {
     ".pdf",
     ".docx",
@@ -91,6 +93,10 @@ class ArtifactPackageService:
     def _is_visible_artifact(self, path: Path) -> bool:
         relative_parts = path.relative_to(self.workspace).parts
         if any(part.startswith(".") for part in relative_parts):
+            return False
+        if relative_parts[0] in SKIP_TOP_LEVEL:
+            return False
+        if path.name in SKIP_FILES:
             return False
         return not any(part in SKIP_DIRS for part in relative_parts)
 
