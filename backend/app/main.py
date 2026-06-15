@@ -8,6 +8,7 @@ from app.routers import (
     common_router,
     config_router,
     files_router,
+    gui_workspace_router,
     modeling_router,
     ws_router,
 )
@@ -41,6 +42,7 @@ app.include_router(ws_router.router)
 app.include_router(common_router.router)
 app.include_router(files_router.router)
 app.include_router(config_router.router, prefix="/api/gui")
+app.include_router(gui_workspace_router.router, prefix="/api/gui")
 
 
 # 跨域 CORS
