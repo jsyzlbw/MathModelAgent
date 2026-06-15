@@ -61,6 +61,17 @@ RAG 知识库保持“仓库空目录，用户自行填充”的产品约束。�
 - 后端提供 `/api/gui/rag/cases`、`/api/gui/rag/cases/{case_id}/validate`、`/api/gui/rag/index/rebuild` 和 `/api/gui/rag/guide`。
 - Studio 的 RAG 面板可以展示结构规范、扫描案例、显示 valid/invalid 状态和重建索引结果。
 
+## 1.5 N 路线已落地交互式 Planning/HIL
+
+系统现在在长流程运行前提供显式计划层，避免用户一点击运行就进入不可解释的自动化：
+
+- 后端 `PlanningService` 会在工作区内生成 `planning/plan.json`，包含问题摘要、数据清单、建模步骤、预期产物和风险。
+- 后端提供 `/api/gui/workspaces/{task_id}/planning/draft`、`/planning` 和 `/planning/action`。
+- 每次生成计划或执行 HIL 动作都会写入 `progress_events.jsonl`，方便 GUI 展示 Agent 正在做什么。
+- Studio 计划区显示计划状态，并提供 6 种 HIL 动作：`confirm`、`edit`、`regenerate`、`ask`、`skip`、`abort`。
+- `confirm` 后计划状态变为 `approved`；`edit` 保存用户修订；`regenerate` 重新起草；`ask` 记录用户追问；`skip` 允许快速试跑；`abort` 中止当前计划。
+- 开始运行时，如果计划未确认，Studio 会提示用户，但 MVP 阶段允许用户手动覆盖。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
@@ -1366,10 +1377,11 @@ MVP 输出：
 
 MVP 检查点：
 
-1. 题意理解确认
-2. 模型路线确认
-3. 初稿审查
-4. 终稿确认
+1. 执行计划确认：生成 `planning/plan.json`，用户通过 HIL 动作确认或修改。
+2. 题意理解确认
+3. 模型路线确认
+4. 初稿审查
+5. 终稿确认
 
 ## 10. 参考项目启发
 

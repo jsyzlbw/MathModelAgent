@@ -223,6 +223,9 @@ docker-compose up
 - `POST /api/gui/config/test-provider`：测试单个 provider 通断，用于 GUI 中每个 API 配置行旁边的测试按钮。
 - `POST /api/gui/workspaces`：创建一次建模任务工作区。
 - `POST /api/gui/workspaces/{task_id}/files`：按 `problem`、`attachment`、`template`、`requirement`、`chat` 分类上传文件。
+- `POST /api/gui/workspaces/{task_id}/planning/draft`：基于题目文本和工作区输入生成结构化执行计划草案。
+- `GET /api/gui/workspaces/{task_id}/planning`：读取当前工作区的 `planning/plan.json`。
+- `POST /api/gui/workspaces/{task_id}/planning/action`：记录计划阶段 HIL 动作。
 - `POST /api/gui/workspaces/{task_id}/run|stop|resume`：启动、停止或记录继续修改请求。
 - `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
 - `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
@@ -233,9 +236,21 @@ docker-compose up
 2. 点击每个 API 配置行右侧的“测试”按钮，逐项确认通断。
 3. 按 RAG 面板中的结构填充 `backend/data/rag_cases/` 范文知识库。
 4. 新建工作区，上传本次赛题、附件、格式样例和额外要求。
-5. 在对话区和 Agent 讨论，修改执行计划。
-6. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
-7. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
+5. 在执行计划区点击“生成计划”，让 Agent 先产出结构化 plan。
+6. 在对话区和 Agent 讨论，通过 HIL 动作确认、修改、重生成或中止计划。
+7. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
+8. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
+
+计划阶段支持 6 种 HIL 动作：
+
+- `confirm`：确认当前计划，状态变为 `approved`，作为后续运行的首选输入。
+- `edit`：保存用户在计划文本框里的修改，状态保持 `draft`。
+- `regenerate`：根据当前题目文本重新生成计划草案。
+- `ask`：把聊天输入或计划文本作为问题记录给 Agent。
+- `skip`：跳过计划审批，适合临时快速试跑。
+- `abort`：中止当前计划，不建议继续运行。
+
+Studio 在计划未确认时仍允许手动开始运行，但会提醒用户先确认计划。计划文件会保存到任务工作区的 `planning/plan.json`，并在进度事件中留下操作记录。
 
 RAG 范文知识库要求每个案例一个文件夹。文件夹名称会作为 `case_id`，只能使用安全路径字符。每个案例至少包含：
 
