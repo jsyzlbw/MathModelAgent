@@ -11,6 +11,7 @@ backend/.env.dev
 backend/mcm_agent_config.local.json
 backend/data/rag_cases/*
 !backend/data/rag_cases/.gitkeep
+!backend/data/rag_cases/README.md
 backend/project/work_dir/*
 !backend/project/work_dir/.gitkeep
 .trae/
