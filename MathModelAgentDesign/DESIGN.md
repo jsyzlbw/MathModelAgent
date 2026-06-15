@@ -165,6 +165,16 @@ Pipeline 的建模阶段现在有明确的题型识别和 solver 产物契约：
 - 新增 `SolverTemplateService`，根据选定题型生成 `code/solver_<problem_type>.py` 和 `results/results_registry.json`。
 - Pipeline 的 `model` 和 `solve` 阶段已接入上述服务，后续真实求解代码可以在 solver template 基础上扩展。
 
+## 1.15 X 路线已落地 Claim-aware Paper Generation
+
+论文写作阶段现在以 claim plan 为中心生成草稿：
+
+- 新增 `ClaimPlanService`，从 `results/results_registry.json`、`reports/model_decision.md` 和 `sources/source_registry.json` 构建 `paper/claim_plan.json`。
+- 每条 claim 包含 `claim_id`、section、statement、evidence_type、evidence_path、source_ids 和 status。
+- 新增 `PaperDraftService`，生成包含 Abstract、Introduction、Assumptions、Model、Results、Limitations、Conclusion 的 `res.md`。
+- 草稿正文会写入 `[claim:<claim_id>]` 标记，并把关键结论链接回 evidence artifact 和 source_id。
+- Pipeline 的 `write` 阶段已改为 claim-aware draft，并把 `paper/claim_plan.json` 登记到 artifact registry。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
