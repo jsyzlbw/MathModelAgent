@@ -7,7 +7,10 @@ import {
 	type RagGuideResponse,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
+	type WorkspacePlan,
+	applyWorkspacePlanAction,
 	createGuiWorkspace,
+	draftWorkspacePlan,
 	getWorkspaceArtifactDownloadUrl,
 	getWorkspaceEvents,
 	getRagGuide,
@@ -40,14 +43,19 @@ import { useToast } from "@/components/ui/toast/use-toast";
 import {
 	Activity,
 	Archive,
+	Ban,
 	BookOpen,
 	Bot,
 	CheckCircle2,
 	Database,
 	FileUp,
+	HelpCircle,
 	MessageSquare,
 	Play,
+	RefreshCw,
+	Save,
 	Settings,
+	SkipForward,
 	Square,
 	UploadCloud,
 } from "lucide-vue-next";
@@ -110,6 +118,8 @@ const ragGuide = ref<RagGuideResponse | null>(null);
 const ragLoading = ref(false);
 const ragRebuilding = ref(false);
 const ragIndexMessage = ref("");
+const currentPlan = ref<WorkspacePlan | null>(null);
+const planningBusy = ref(false);
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 const apiRowDefs: ApiRowDefinition[] = [
@@ -442,6 +452,7 @@ const createWorkspace = async () => {
 		eventCursor.value = 0;
 		artifacts.value = [];
 		artifactPreview.value = null;
+		currentPlan.value = null;
 		toast({
 			title: "工作区已创建",
 			description: response.data.task_id,
@@ -455,6 +466,89 @@ const createWorkspace = async () => {
 		});
 	} finally {
 		workspaceCreating.value = false;
+	}
+};
+
+const planToText = (plan: WorkspacePlan) => {
+	return [
+		`Status: ${plan.status}`,
+		`Problem: ${plan.problem_summary}`,
+		"",
+		"Data inventory:",
+		...(plan.data_inventory.length ? plan.data_inventory.map((item) => `- ${item}`) : ["- No attachment files yet"]),
+		"",
+		"Modeling steps:",
+		...plan.modeling_steps.map((step, index) => `${index + 1}. ${step}`),
+		"",
+		"Expected artifacts:",
+		...plan.expected_artifacts.map((item) => `- ${item}`),
+		"",
+		"Risks:",
+		...plan.risks.map((item) => `- ${item}`),
+		plan.user_revision ? `\nUser revision:\n${plan.user_revision}` : "",
+	].filter(Boolean).join("\n");
+};
+
+const ensureWorkspace = async () => {
+	if (!activeTaskId.value) {
+		await createWorkspace();
+	}
+	return activeTaskId.value;
+};
+
+const generatePlan = async () => {
+	const taskId = await ensureWorkspace();
+	if (!taskId) return;
+	planningBusy.value = true;
+	try {
+		const response = await draftWorkspacePlan(taskId, problemText.value);
+		currentPlan.value = response.data;
+		planDraft.value = planToText(response.data);
+		await refreshEvents();
+	} catch (error) {
+		console.error("生成计划失败:", error);
+		toast({
+			title: "生成计划失败",
+			description: "请确认已创建工作区并填写题目文本。",
+			variant: "destructive",
+		});
+	} finally {
+		planningBusy.value = false;
+	}
+};
+
+const applyPlanAction = async (
+	action: "confirm" | "edit" | "regenerate" | "ask" | "skip" | "abort",
+) => {
+	const taskId = await ensureWorkspace();
+	if (!taskId) return;
+	planningBusy.value = true;
+	try {
+		let content = "";
+		if (action === "edit") {
+			content = planDraft.value;
+		} else if (action === "ask") {
+			content = chatInput.value.trim() || planDraft.value;
+		} else if (action === "regenerate") {
+			content = problemText.value;
+		}
+		const response = await applyWorkspacePlanAction(taskId, { action, content });
+		currentPlan.value = response.data;
+		planDraft.value = planToText(response.data);
+		addLocalMessage("agent", `计划动作已记录：${action}`);
+		if (action === "ask" && chatInput.value.trim()) {
+			chatInput.value = "";
+		}
+		await refreshEvents();
+	} catch (error) {
+		console.error("计划动作失败:", error);
+		toast({
+			title: "计划动作失败",
+			description: "请检查后端服务。",
+			variant: "destructive",
+		});
+	} finally {
+		planningBusy.value = false;
 	}
 };
 
@@ -577,6 +671,12 @@ const startRun = async () => {
 		await createWorkspace();
 	}
 	if (!activeTaskId.value) return;
+	if (currentPlan.value?.status !== "approved") {
+		toast({
+			title: "计划尚未确认",
+			description: "MVP 允许继续运行，但建议先确认执行计划。",
+		});
+	}
 	running.value = true;
 	try {
 		await runWorkspace(activeTaskId.value, {
@@ -894,14 +994,63 @@ onBeforeUnmount(() => {
 
           <Card class="min-h-0 rounded-lg shadow-sm">
             <CardHeader class="pb-3">
-              <CardTitle class="flex items-center gap-2 text-base">
-                <Activity class="size-4" />
-                执行计划
-              </CardTitle>
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle class="flex items-center gap-2 text-base">
+                  <Activity class="size-4" />
+                  执行计划
+                </CardTitle>
+                <span class="rounded border px-2 py-0.5 font-mono text-[11px]"
+                  :class="{
+                    'border-green-200 bg-green-50 text-green-700': currentPlan?.status === 'approved',
+                    'border-amber-200 bg-amber-50 text-amber-700': currentPlan?.status === 'draft',
+                    'border-red-200 bg-red-50 text-red-700': currentPlan?.status === 'aborted',
+                    'border-zinc-200 bg-zinc-50 text-zinc-600': !currentPlan || currentPlan?.status === 'skipped',
+                  }"
+                >
+                  {{ currentPlan?.status || "not-generated" }}
+                </span>
+              </div>
               <CardDescription>由 Agent 主导生成，用户确认或修改后运行。</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Textarea v-model="planDraft" class="h-[420px] font-mono text-sm" />
+            <CardContent class="flex h-[452px] flex-col gap-3">
+              <div class="grid gap-2 sm:grid-cols-4">
+                <Button size="xs" :disabled="planningBusy" @click="generatePlan">
+                  <RefreshCw />
+                  {{ planningBusy ? "处理中" : "生成计划" }}
+                </Button>
+                <Button size="xs" variant="outline" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('confirm')">
+                  <CheckCircle2 />
+                  确认
+                </Button>
+                <Button size="xs" variant="outline" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('edit')">
+                  <Save />
+                  保存修改
+                </Button>
+                <Button size="xs" variant="outline" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('regenerate')">
+                  <RefreshCw />
+                  重新生成
+                </Button>
+                <Button size="xs" variant="outline" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('ask')">
+                  <HelpCircle />
+                  提问
+                </Button>
+                <Button size="xs" variant="outline" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('skip')">
+                  <SkipForward />
+                  跳过
+                </Button>
+                <Button size="xs" variant="outline" class="border-red-200 text-red-700 hover:bg-red-50" :disabled="planningBusy || !currentPlan" @click="applyPlanAction('abort')">
+                  <Ban />
+                  中止
+                </Button>
+              </div>
+              <div v-if="currentPlan?.last_action" class="rounded-md border bg-white px-3 py-2 text-xs text-zinc-600">
+                上次动作：
+                <span class="font-mono">{{ currentPlan.last_action.action }}</span>
+                <span v-if="currentPlan.last_action.content" class="ml-2 text-zinc-500">
+                  {{ currentPlan.last_action.content.slice(0, 80) }}
+                </span>
+              </div>
+              <Textarea v-model="planDraft" class="min-h-0 flex-1 font-mono text-sm" />
             </CardContent>
           </Card>
         </div>

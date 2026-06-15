@@ -85,6 +85,30 @@ export interface RagGuideResponse {
 	example: string[];
 }
 
+export interface WorkspacePlan {
+	version: number;
+	status: "draft" | "approved" | "skipped" | "aborted" | string;
+	created_at: string;
+	updated_at: string;
+	problem_summary: string;
+	data_inventory: string[];
+	modeling_steps: string[];
+	expected_artifacts: string[];
+	risks: string[];
+	user_revision: string;
+	user_question?: string;
+	last_action: {
+		action: string;
+		content: string;
+		created_at: string;
+	} | null;
+}
+
+export interface PlanActionPayload {
+	action: "confirm" | "edit" | "regenerate" | "ask" | "skip" | "abort";
+	content?: string;
+}
+
 export function getGuiConfig() {
 	return request.get<GuiConfig>("/api/gui/config");
 }
@@ -200,4 +224,28 @@ export function rebuildRagIndex() {
 
 export function getRagGuide() {
 	return request.get<RagGuideResponse>("/api/gui/rag/guide");
+}
+
+export function draftWorkspacePlan(taskId: string, problemText = "") {
+	return request.post<WorkspacePlan>(
+		`/api/gui/workspaces/${taskId}/planning/draft`,
+		{ problem_text: problemText },
+	);
+}
+
+export function getWorkspacePlan(taskId: string) {
+	return request.get<WorkspacePlan>(`/api/gui/workspaces/${taskId}/planning`);
+}
+
+export function applyWorkspacePlanAction(
+	taskId: string,
+	payload: PlanActionPayload,
+) {
+	return request.post<WorkspacePlan>(
+		`/api/gui/workspaces/${taskId}/planning/action`,
+		{
+			action: payload.action,
+			content: payload.content ?? "",
+		},
+	);
 }
