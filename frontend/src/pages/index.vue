@@ -119,7 +119,7 @@
         <h2 class="text-xl font-semibold mb-4">立即开启您的建模之旅</h2>
         <p class="text-gray-300 mb-6">体验革命性的数学建模助手，节省时间，提高效率</p>
         <button class="w-full py-3 px-6 rounded-lg gradient-bg font-medium hover:opacity-90 transition-opacity"
-          @click="router.push('/chat')">
+          @click="router.push('/studio')">
           立即体验
         </button>
       </div>
