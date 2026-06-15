@@ -35,6 +35,7 @@
 - 📚 RAG 知识库: 从本地知识库检索建模方法、代码模板、论文写作参考（ChromaDB + Rerank）
 - 🤝 HIL 人机协作: 关键节点暂停等待用户审批，支持 6 种决策动作（confirm / edit / regenerate / ask / skip / abort）
 - 🛡️ 四层容错: 有限重试 → Fallback Hand Off → Evaluator Shadow Mode → Feedback Rerun
+- 🖥️ GUI 产品化后端基础: 统一 JSON 配置、逐项 API 通断测试、结构化题目上传、任务进度事件、产物预览/下载
 
 
 
@@ -206,6 +207,25 @@ docker-compose up
 3. 配置
 
 侧边栏 -> 头像 -> API Key
+
+### GUI 产品化配置与后端 API
+
+当前 GUI 产品化路线采用一个本地 JSON 文件集中管理运行配置：
+
+- 提交到仓库的是 `backend/mcm_agent_config.example.json`，只包含字段模板，不包含密钥。
+- 用户真实配置写入 `backend/mcm_agent_config.local.json`，该文件已被 `.gitignore` 忽略。
+- RAG 知识库目录默认是 `backend/data/rag_cases/`，仓库只保留空目录占位，等待用户导入优秀范文。
+
+后端已提供 `/api/gui` 前缀下的 GUI 基础接口：
+
+- `GET /api/gui/config`：读取已脱敏配置。
+- `PUT /api/gui/config`：保存配置到 ignored local JSON。
+- `POST /api/gui/config/test-provider`：测试单个 provider 通断，用于 GUI 中每个 API 配置行旁边的测试按钮。
+- `POST /api/gui/workspaces`：创建一次建模任务工作区。
+- `POST /api/gui/workspaces/{task_id}/files`：按 `problem`、`attachment`、`template`、`requirement`、`chat` 分类上传文件。
+- `POST /api/gui/workspaces/{task_id}/run|stop|resume`：启动、停止或记录继续修改请求。
+- `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
+- `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
 
 ### 💻 方案二: 本地部署（推荐项目开发者部署）
 
@@ -409,4 +429,3 @@ https://linux.do/
 
 > [!CAUTION]
 > 免责声明: 注意，AI 生成仅供参考，目前水平直接参加国赛获奖是不可能的，但我相信 AI 和 该项目未来的成长。
-
