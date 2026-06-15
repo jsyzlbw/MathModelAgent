@@ -237,6 +237,13 @@ docker-compose up
 6. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
 7. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
 
+RAG 范文知识库要求每个案例一个文件夹。文件夹名称会作为 `case_id`，只能使用安全路径字符。每个案例至少包含：
+
+- `problem.pdf`、`problem.md`、`problem.txt` 或 `problem.docx`
+- `paper.pdf`、`paper.md`、`paper.txt` 或 `paper.docx`
+
+可选内容包括 `data/` 附件目录和 `notes.md` 方法笔记。点击 Studio 的“扫描案例”会检查结构；点击“重建索引”会生成本地 `.rag_manifest.json` 和 `.rag_index.json`，供后续写作和建模检索使用。
+
 ### 💻 方案二: 本地部署（推荐项目开发者部署）
 
 > 确保电脑中安装好 Python, Nodejs, **Redis** 环境

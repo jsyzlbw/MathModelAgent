@@ -50,6 +50,17 @@ RAG 知识库初始为空目录，由用户自行填充。仓库只保留目录�
 - 右侧进度栏轮询 `/events`，持续显示 Agent 阶段事件。
 - 产物栏读取 `/artifacts`，支持文本预览和非文本下载。
 
+## 1.4 M 路线已落地结构化 RAG Case Library
+
+RAG 知识库保持“仓库空目录，用户自行填充”的产品约束。后端新增结构化案例库服务：
+
+- 根目录默认是 `backend/data/rag_cases/`，仓库只提交 `.gitkeep` 和 README，不提交用户范文。
+- 每个案例一个文件夹，案例文件夹必须包含 `problem.(pdf|md|txt|docx)` 和 `paper.(pdf|md|txt|docx)`。
+- 可选内容包括 `data/` 附件目录和 `notes.md` 方法笔记。
+- `RagCaseLibrary` 能扫描案例、校验缺失文件、生成 `.rag_manifest.json`，并构建轻量 `.rag_index.json` 关键词索引。
+- 后端提供 `/api/gui/rag/cases`、`/api/gui/rag/cases/{case_id}/validate`、`/api/gui/rag/index/rebuild` 和 `/api/gui/rag/guide`。
+- Studio 的 RAG 面板可以展示结构规范、扫描案例、显示 valid/invalid 状态和重建索引结果。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
