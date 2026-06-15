@@ -110,6 +110,21 @@ export interface RunWorkspacePayload {
 	format_output?: string;
 }
 
+export interface PipelineStatusResponse {
+	task_id: string;
+	version: number;
+	status: string;
+	current_stage: string | null;
+	created_at: string;
+	updated_at: string;
+	stages: Array<{
+		name: string;
+		status: string;
+		updated_at?: string;
+	}>;
+	error?: string;
+}
+
 export interface ArtifactContentResponse {
 	task_id: string;
 	path: string;
@@ -274,6 +289,12 @@ export function runWorkspace(taskId: string, payload: RunWorkspacePayload) {
 		`/api/gui/workspaces/${taskId}/run`,
 		payload,
 		{ timeout: 30000 },
+	);
+}
+
+export function getPipelineStatus(taskId: string) {
+	return request.get<PipelineStatusResponse>(
+		`/api/gui/workspaces/${taskId}/pipeline/status`,
 	);
 }
 

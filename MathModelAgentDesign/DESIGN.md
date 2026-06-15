@@ -134,6 +134,17 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 每次检索都会写入 `.rag_retrieval_log.jsonl`，便于复盘 Agent 引用了哪些范文片段。
 - Studio 的 RAG 面板新增向量索引和检索控件，用户能直接看到命中案例、来源文件和片段。
 
+## 1.12 U 路线已落地 Plan-driven Pipeline
+
+`planning/plan.json` 现在可以驱动一个可观察、可恢复的阶段式 pipeline：
+
+- 新增 `PipelineService`，按 `intake -> parse -> rag -> plan -> model -> solve -> write -> qa -> export` 顺序执行。
+- 每个阶段都会写入 `pipeline/state.json`，同时追加 `pipeline.stage_started` 和 `pipeline.stage_completed` 进度事件。
+- Pipeline 会维护 `artifact_registry.json`，记录产物 ID、类型、路径、生产者、依赖和状态。
+- Demo 模式下，Studio 的“开始运行”会执行 plan-driven pipeline，生成 `reports/`、`results/results_registry.json`、`res.md`、`review/reviewer_report.md` 和提交包。
+- Real 模式仍保留旧的长 LLM workflow，便于后续逐步把真实建模和写作能力迁入 pipeline 阶段。
+- 后端提供 `/api/gui/workspaces/{task_id}/pipeline/status`，Studio 右侧进度栏会显示 pipeline 阶段状态。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先

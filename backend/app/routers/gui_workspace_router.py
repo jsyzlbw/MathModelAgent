@@ -18,6 +18,7 @@ from app.routers.modeling_router import (
 from app.schemas.enums import CompTemplate, FormatOutPut
 from app.services.input_manifest_service import InputManifestService
 from app.services.input_parsing_service import InputParsingService
+from app.services.pipeline_service import PipelineService
 from app.utils.common_utils import create_task_id, create_work_dir, ensure_safe_task_id
 
 router = APIRouter(tags=["gui-workspace"])
@@ -255,6 +256,10 @@ async def start_workspace_run(
     if not problem_text:
         raise HTTPException(status_code=400, detail="缺少题目文本或题目文件")
 
+    if request.mode == "demo":
+        plan = PipelineService(root, safe_task_id).run()
+        return {"task_id": safe_task_id, "status": plan["status"], "pipeline": plan}
+
     append_progress_event(
         safe_task_id,
         stage="task.queued",
@@ -270,6 +275,16 @@ async def start_workspace_run(
         request.format_output,
     )
     return {"task_id": safe_task_id, "status": "processing"}
+
+
+@router.get("/workspaces/{task_id}/pipeline/status")
+async def get_workspace_pipeline_status(task_id: str) -> dict:
+    """Return persisted plan-driven pipeline status."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    return {"task_id": safe_task_id, **PipelineService(root, safe_task_id).load_state()}
 
 
 @router.post("/workspaces/{task_id}/stop", response_model=CancelTaskResponse)

@@ -4,6 +4,7 @@ import {
 	type ArtifactItem,
 	type ArtifactPackageResponse,
 	type ChatMessageRecord,
+	type PipelineStatusResponse,
 	type ProgressEvent,
 	type RagCaseItem,
 	type RagGuideResponse,
@@ -22,6 +23,7 @@ import {
 	draftWorkspacePlan,
 	getWorkspaceArtifactDownloadUrl,
 	getArtifactPackageDownloadUrl,
+	getPipelineStatus,
 	getWorkspaceEvents,
 	getRagGuide,
 	listWorkspaceArtifacts,
@@ -126,6 +128,7 @@ const localMessages = ref<LocalMessage[]>([
 	},
 ]);
 const running = ref(false);
+const pipelineStatus = ref<PipelineStatusResponse | null>(null);
 const progressEvents = ref<ProgressEvent[]>([]);
 const eventCursor = ref(0);
 const artifacts = ref<ArtifactItem[]>([]);
@@ -576,6 +579,7 @@ const createWorkspace = async () => {
 		activeTaskId.value = response.data.task_id;
 		uploadStatus.value = {};
 		progressEvents.value = [];
+		pipelineStatus.value = null;
 		eventCursor.value = 0;
 		artifacts.value = [];
 		artifactPreview.value = null;
@@ -920,11 +924,22 @@ const refreshArtifacts = async () => {
 	}
 };
 
+const refreshPipelineStatus = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await getPipelineStatus(activeTaskId.value);
+		pipelineStatus.value = response.data;
+	} catch (error) {
+		console.error("读取 pipeline 状态失败:", error);
+	}
+};
+
 const startProgressPolling = () => {
 	if (progressTimer) return;
 	progressTimer = setInterval(() => {
 		refreshEvents();
 		refreshArtifacts();
+		refreshPipelineStatus();
 	}, 2000);
 };
 
@@ -950,11 +965,14 @@ const startRun = async () => {
 	try {
 		await runWorkspace(activeTaskId.value, {
 			problem_text: problemText.value,
-			mode: "real",
+			mode: "demo",
 			format_output: "Markdown",
 		});
-		addLocalMessage("agent", "任务已启动。我会持续读取后端进度事件。");
+		addLocalMessage("agent", "Plan-driven pipeline 已完成一次可观察试跑，产物和阶段事件已写入工作区。");
 		await refreshEvents();
+		await refreshPipelineStatus();
+		await refreshArtifacts();
+		running.value = false;
 		startProgressPolling();
 	} catch (error) {
 		console.error("启动任务失败:", error);
@@ -1479,6 +1497,22 @@ onBeforeUnmount(() => {
           </CardHeader>
           <CardContent>
             <div class="flex flex-col gap-3">
+              <div v-if="pipelineStatus" class="rounded-md border bg-zinc-50 p-3">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <span class="text-xs font-medium">Pipeline</span>
+                  <span class="font-mono text-[11px] text-zinc-500">{{ pipelineStatus.status }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1">
+                  <span
+                    v-for="stage in pipelineStatus.stages"
+                    :key="stage.name"
+                    class="rounded border px-1.5 py-1 text-center text-[10px]"
+                    :class="stage.status === 'completed' ? 'border-green-200 bg-green-50 text-green-700' : stage.status === 'running' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-zinc-200 bg-white text-zinc-500'"
+                  >
+                    {{ stage.name }}
+                  </span>
+                </div>
+              </div>
               <div v-for="item in displayedProgressEvents" :key="`${item.seq}-${item.stage}`" class="rounded-md border bg-white p-3">
                 <div class="flex items-center justify-between gap-2">
                   <div class="font-mono text-xs text-zinc-500">{{ item.stage }}</div>

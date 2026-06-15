@@ -149,7 +149,7 @@ def test_gui_workspace_api_starts_background_run_from_problem_text(
 
     response = client.post(
         f"/api/gui/workspaces/{task_id}/run",
-        json={"problem_text": "Solve this MCM problem.", "mode": "demo"},
+        json={"problem_text": "Solve this MCM problem.", "mode": "real"},
     )
 
     assert response.status_code == 200
