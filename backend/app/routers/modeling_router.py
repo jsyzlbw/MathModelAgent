@@ -13,6 +13,7 @@ from app.utils.common_utils import (
     get_current_files,
     md_2_docx,
 )
+from app.core.progress_events import append_progress_event
 import os
 import asyncio
 from typing import Dict, Tuple
@@ -303,6 +304,7 @@ async def run_modeling_task_async(
         task_id,
         SystemMessage(content="任务开始处理"),
     )
+    append_progress_event(task_id, stage="task.started", message="任务开始处理")
 
     # 给一个短暂的延迟，确保 WebSocket 有机会连接
     await asyncio.sleep(1)
@@ -326,17 +328,35 @@ async def run_modeling_task_async(
             task_id,
             SystemMessage(content="任务处理完成", type="success"),
         )
+        append_progress_event(
+            task_id,
+            stage="task.completed",
+            message="任务处理完成",
+            level="success",
+        )
     except asyncio.CancelledError:
         logger.info(f"任务 {task_id} 被取消")
         await redis_manager.publish_message(
             task_id,
             SystemMessage(content="任务已停止", type="warning"),
         )
+        append_progress_event(
+            task_id,
+            stage="task.cancelled",
+            message="任务已停止",
+            level="warning",
+        )
     except Exception as e:
         logger.error(f"任务 {task_id} 执行失败: {e}")
         await redis_manager.publish_message(
             task_id,
             SystemMessage(content=f"任务执行失败: {str(e)}", type="error"),
+        )
+        append_progress_event(
+            task_id,
+            stage="task.failed",
+            message=f"任务执行失败: {str(e)}",
+            level="error",
         )
     finally:
         # 从注册表中清理

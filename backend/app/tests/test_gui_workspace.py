@@ -82,3 +82,35 @@ def test_gui_workspace_api_rejects_unsafe_task_id_and_filename(
         files={"files": ("../evil.csv", b"x,y\n1,2", "text/csv")},
     )
     assert upload_response.status_code == 400
+
+
+def test_gui_artifact_api_lists_and_reads_safe_workspace_files(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    client = make_workspace_client(tmp_path, monkeypatch)
+    task_id = client.post("/api/gui/workspaces", json={"title": "Artifacts"}).json()[
+        "task_id"
+    ]
+    root = tmp_path / "project" / "work_dir" / task_id
+    (root / "res.md").write_text("# Paper\n\ncontent", encoding="utf-8")
+    (root / ".hidden").write_text("hidden", encoding="utf-8")
+
+    list_response = client.get(f"/api/gui/workspaces/{task_id}/artifacts")
+    assert list_response.status_code == 200
+    filenames = {item["path"] for item in list_response.json()["artifacts"]}
+    assert "res.md" in filenames
+    assert ".hidden" not in filenames
+
+    content_response = client.get(
+        f"/api/gui/workspaces/{task_id}/artifacts/content",
+        params={"path": "res.md"},
+    )
+    assert content_response.status_code == 200
+    assert content_response.json()["content"] == "# Paper\n\ncontent"
+
+    traversal_response = client.get(
+        f"/api/gui/workspaces/{task_id}/artifacts/content",
+        params={"path": "../secret.txt"},
+    )
+    assert traversal_response.status_code == 400
