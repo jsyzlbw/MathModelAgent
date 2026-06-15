@@ -145,6 +145,16 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - Real 模式仍保留旧的长 LLM workflow，便于后续逐步把真实建模和写作能力迁入 pipeline 阶段。
 - 后端提供 `/api/gui/workspaces/{task_id}/pipeline/status`，Studio 右侧进度栏会显示 pipeline 阶段状态。
 
+## 1.13 V 路线已落地 Source Provider Registry
+
+外部搜索、学术论文和官方数据现在有统一来源登记层：
+
+- 新增 `SourceRegistryService`，在每个工作区写入 `sources/source_registry.json` 和 `sources/query_log.jsonl`。
+- 新增 `SourceProviderService`，统一封装 search、academic、official_data 三类 provider，并保留真实 provider 配置状态。
+- 当前 provider facade 使用 offline-safe records，测试和离线运行不依赖外网；后续 Tavily/OpenAlex/FRED 等真实 adapter 可以替换同一接口。
+- 每条 source 都有稳定 `source_id`、provider、source_type、title、url、summary 和 metadata。
+- 后端提供 `/api/gui/workspaces/{task_id}/sources/query` 和 `/sources`；Studio 右侧新增来源登记控件，可以把查询结果写入 source registry。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先

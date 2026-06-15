@@ -125,6 +125,27 @@ export interface PipelineStatusResponse {
 	error?: string;
 }
 
+export interface SourceRecord {
+	source_id: string;
+	provider: string;
+	source_type: string;
+	title: string;
+	url: string;
+	summary: string;
+	metadata: Record<string, unknown>;
+	created_at: string;
+}
+
+export interface SourceQueryResponse {
+	task_id: string;
+	provider_type: string;
+	provider: string;
+	query: string;
+	sources: SourceRecord[];
+	registry_path: string;
+	query_log_path: string;
+}
+
 export interface ArtifactContentResponse {
 	task_id: string;
 	path: string;
@@ -296,6 +317,29 @@ export function getPipelineStatus(taskId: string) {
 	return request.get<PipelineStatusResponse>(
 		`/api/gui/workspaces/${taskId}/pipeline/status`,
 	);
+}
+
+export function queryWorkspaceSources(
+	taskId: string,
+	payload: {
+		provider_type: string;
+		provider: string;
+		query: string;
+		limit?: number;
+	},
+) {
+	return request.post<SourceQueryResponse>(
+		`/api/gui/workspaces/${taskId}/sources/query`,
+		payload,
+	);
+}
+
+export function listWorkspaceSources(taskId: string) {
+	return request.get<{
+		task_id: string;
+		version: number;
+		sources: SourceRecord[];
+	}>(`/api/gui/workspaces/${taskId}/sources`);
 }
 
 export function stopWorkspace(taskId: string) {

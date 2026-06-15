@@ -10,6 +10,7 @@ import {
 	type RagGuideResponse,
 	type RagQueryResponse,
 	type RevisionRequestRecord,
+	type SourceRecord,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
 	type WorkspaceInputItem,
@@ -26,6 +27,7 @@ import {
 	getPipelineStatus,
 	getWorkspaceEvents,
 	getRagGuide,
+	listWorkspaceSources,
 	listWorkspaceArtifacts,
 	listRagCases,
 	type ProviderTestResponse,
@@ -36,6 +38,7 @@ import {
 	parseWorkspaceInputs,
 	previewWorkspaceInput,
 	queryRag,
+	queryWorkspaceSources,
 	readWorkspaceArtifact,
 	rebuildRagIndex,
 	rebuildRagVectorIndex,
@@ -132,6 +135,11 @@ const pipelineStatus = ref<PipelineStatusResponse | null>(null);
 const progressEvents = ref<ProgressEvent[]>([]);
 const eventCursor = ref(0);
 const artifacts = ref<ArtifactItem[]>([]);
+const sourceProviderType = ref("academic");
+const sourceProvider = ref("openalex");
+const sourceQuery = ref("");
+const sourceQuerying = ref(false);
+const workspaceSources = ref<SourceRecord[]>([]);
 const artifactPreview = ref<{ path: string; content: string } | null>(null);
 const artifactLoading = ref(false);
 const artifactPackage = ref<ArtifactPackageResponse | null>(null);
@@ -582,6 +590,7 @@ const createWorkspace = async () => {
 		pipelineStatus.value = null;
 		eventCursor.value = 0;
 		artifacts.value = [];
+		workspaceSources.value = [];
 		artifactPreview.value = null;
 		artifactPackage.value = null;
 		workspaceInputs.value = [];
@@ -934,12 +943,50 @@ const refreshPipelineStatus = async () => {
 	}
 };
 
+const refreshWorkspaceSources = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await listWorkspaceSources(activeTaskId.value);
+		workspaceSources.value = response.data.sources;
+	} catch (error) {
+		console.error("读取 sources 失败:", error);
+	}
+};
+
+const querySources = async () => {
+	if (!activeTaskId.value || !sourceQuery.value.trim()) return;
+	sourceQuerying.value = true;
+	try {
+		const response = await queryWorkspaceSources(activeTaskId.value, {
+			provider_type: sourceProviderType.value,
+			provider: sourceProvider.value,
+			query: sourceQuery.value.trim(),
+			limit: 3,
+		});
+		workspaceSources.value = response.data.sources;
+		toast({
+			title: "来源已登记",
+			description: `${response.data.sources.length} 条 source 写入 registry。`,
+		});
+	} catch (error) {
+		console.error("查询 sources 失败:", error);
+		toast({
+			title: "来源查询失败",
+			description: "请检查 provider 类型、名称和后端服务。",
+			variant: "destructive",
+		});
+	} finally {
+		sourceQuerying.value = false;
+	}
+};
+
 const startProgressPolling = () => {
 	if (progressTimer) return;
 	progressTimer = setInterval(() => {
 		refreshEvents();
 		refreshArtifacts();
 		refreshPipelineStatus();
+		refreshWorkspaceSources();
 	}, 2000);
 };
 
@@ -1532,6 +1579,31 @@ onBeforeUnmount(() => {
                 <div v-if="item.timestamp" class="mt-2 font-mono text-[11px] text-zinc-400">
                   {{ new Date(item.timestamp).toLocaleTimeString() }}
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card class="rounded-lg shadow-sm">
+          <CardHeader class="pb-3">
+            <CardTitle class="text-base">来源登记</CardTitle>
+            <CardDescription>外部网页、论文和官方数据会登记为 source_id。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div class="grid grid-cols-2 gap-2">
+              <Input v-model="sourceProviderType" placeholder="academic / search / official_data" />
+              <Input v-model="sourceProvider" placeholder="openalex" />
+            </div>
+            <div class="mt-2 flex gap-2">
+              <Input v-model="sourceQuery" placeholder="输入要查的主题" @keyup.enter="querySources" />
+              <Button size="xs" :disabled="!activeTaskId || sourceQuerying || !sourceQuery.trim()" @click="querySources">
+                {{ sourceQuerying ? "查询中" : "登记" }}
+              </Button>
+            </div>
+            <div v-if="workspaceSources.length" class="mt-3 flex max-h-36 flex-col gap-2 overflow-auto">
+              <div v-for="source in workspaceSources.slice(0, 5)" :key="source.source_id" class="rounded-md border bg-white p-2">
+                <div class="font-mono text-[11px] text-zinc-500">{{ source.source_id }} · {{ source.provider }}</div>
+                <div class="mt-1 line-clamp-2 text-xs text-zinc-700">{{ source.title }}</div>
               </div>
             </div>
           </CardContent>
