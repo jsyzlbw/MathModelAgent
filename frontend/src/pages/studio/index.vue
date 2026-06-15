@@ -3,15 +3,20 @@ import {
 	type GuiConfig,
 	type ArtifactItem,
 	type ProgressEvent,
+	type RagCaseItem,
+	type RagGuideResponse,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
 	createGuiWorkspace,
 	getWorkspaceArtifactDownloadUrl,
 	getWorkspaceEvents,
+	getRagGuide,
 	listWorkspaceArtifacts,
+	listRagCases,
 	type ProviderTestResponse,
 	getGuiConfig,
 	readWorkspaceArtifact,
+	rebuildRagIndex,
 	resumeWorkspace,
 	runWorkspace,
 	saveGuiConfig,
@@ -100,6 +105,11 @@ const eventCursor = ref(0);
 const artifacts = ref<ArtifactItem[]>([]);
 const artifactPreview = ref<{ path: string; content: string } | null>(null);
 const artifactLoading = ref(false);
+const ragCases = ref<RagCaseItem[]>([]);
+const ragGuide = ref<RagGuideResponse | null>(null);
+const ragLoading = ref(false);
+const ragRebuilding = ref(false);
+const ragIndexMessage = ref("");
 let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 const apiRowDefs: ApiRowDefinition[] = [
@@ -477,6 +487,37 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 	}
 };
 
+const refreshRagLibrary = async () => {
+	ragLoading.value = true;
+	try {
+		const [casesResponse, guideResponse] = await Promise.all([
+			listRagCases(),
+			getRagGuide(),
+		]);
+		ragCases.value = casesResponse.data.cases;
+		ragGuide.value = guideResponse.data;
+	} catch (error) {
+		console.error("读取 RAG 知识库失败:", error);
+	} finally {
+		ragLoading.value = false;
+	}
+};
+
+const rebuildRagLibraryIndex = async () => {
+	ragRebuilding.value = true;
+	ragIndexMessage.value = "";
+	try {
+		const response = await rebuildRagIndex();
+		ragIndexMessage.value = `索引已重建：${response.data.valid_case_count}/${response.data.case_count} 个有效案例`;
+		await refreshRagLibrary();
+	} catch (error) {
+		console.error("重建 RAG 索引失败:", error);
+		ragIndexMessage.value = "索引重建失败，请检查后端服务。";
+	} finally {
+		ragRebuilding.value = false;
+	}
+};
+
 const addLocalMessage = (role: LocalMessage["role"], content: string) => {
 	localMessages.value.push({
 		role,
@@ -606,6 +647,7 @@ const openArtifact = async (artifact: ArtifactItem) => {
 
 onMounted(() => {
 	loadConfig();
+	refreshRagLibrary();
 });
 
 onBeforeUnmount(() => {
@@ -739,16 +781,42 @@ onBeforeUnmount(() => {
               </CardHeader>
               <CardContent class="text-sm">
                 <div class="rounded-md border bg-white p-3 font-mono text-xs leading-6">
-                  {{ ragKnowledgeDir }}/<br>
-                  &nbsp;&nbsp;case-name/<br>
-                  &nbsp;&nbsp;&nbsp;&nbsp;problem.pdf<br>
-                  &nbsp;&nbsp;&nbsp;&nbsp;data/<br>
-                  &nbsp;&nbsp;&nbsp;&nbsp;paper.pdf<br>
-                  &nbsp;&nbsp;&nbsp;&nbsp;notes.md
+                  {{ ragGuide?.root || ragKnowledgeDir }}/<br>
+                  <template v-for="line in (ragGuide?.example || ['case-id/', '  problem.pdf', '  paper.pdf', '  data/', '  notes.md'])" :key="line">
+                    {{ line }}<br>
+                  </template>
                 </div>
-                <p class="mt-3 text-zinc-600">
-                  后续路线会加入结构校验、索引构建和检索引用。当前界面先固定用户导入规范。
+                <div class="mt-3 flex items-center gap-2">
+                  <Button size="xs" variant="outline" :disabled="ragLoading" @click="refreshRagLibrary">
+                    {{ ragLoading ? "扫描中" : "扫描案例" }}
+                  </Button>
+                  <Button size="xs" :disabled="ragRebuilding" @click="rebuildRagLibraryIndex">
+                    {{ ragRebuilding ? "重建中" : "重建索引" }}
+                  </Button>
+                </div>
+                <p v-if="ragIndexMessage" class="mt-2 rounded-md border bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+                  {{ ragIndexMessage }}
                 </p>
+                <div class="mt-3 flex flex-col gap-2">
+                  <div v-if="!ragCases.length" class="rounded-md border bg-white p-3 text-zinc-500">
+                    当前没有用户导入的范文案例。
+                  </div>
+                  <div v-for="item in ragCases" :key="item.case_id" class="rounded-md border bg-white p-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="font-mono text-sm">{{ item.case_id }}</div>
+                      <span
+                        class="rounded border px-2 py-0.5 text-[11px]"
+                        :class="item.status === 'valid' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'"
+                      >
+                        {{ item.status }}
+                      </span>
+                    </div>
+                    <div class="mt-1 text-xs text-zinc-500">{{ item.files.length }} files</div>
+                    <ul v-if="item.issues.length" class="mt-2 list-inside list-disc text-xs text-red-700">
+                      <li v-for="issue in item.issues" :key="issue">{{ issue }}</li>
+                    </ul>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

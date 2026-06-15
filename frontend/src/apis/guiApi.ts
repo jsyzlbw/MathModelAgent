@@ -64,6 +64,27 @@ export interface ArtifactContentResponse {
 	content: string;
 }
 
+export interface RagCaseFile {
+	path: string;
+	size: number;
+	sha256: string;
+}
+
+export interface RagCaseItem {
+	case_id: string;
+	status: "valid" | "invalid" | string;
+	issues: string[];
+	files: RagCaseFile[];
+}
+
+export interface RagGuideResponse {
+	root: string;
+	required_files: string[];
+	accepted_suffixes: string[];
+	optional_paths: string[];
+	example: string[];
+}
+
 export function getGuiConfig() {
 	return request.get<GuiConfig>("/api/gui/config");
 }
@@ -151,4 +172,32 @@ export function getWorkspaceArtifactDownloadUrl(taskId: string, path: string) {
 	const baseURL = request.defaults.baseURL || "";
 	const params = new URLSearchParams({ path });
 	return `${baseURL}/api/gui/workspaces/${taskId}/artifacts/download?${params.toString()}`;
+}
+
+export function listRagCases() {
+	return request.get<{
+		root: string;
+		cases: RagCaseItem[];
+		manifest_path: string;
+		index_path: string;
+	}>("/api/gui/rag/cases");
+}
+
+export function validateRagCase(caseId: string) {
+	return request.post<RagCaseItem>(`/api/gui/rag/cases/${caseId}/validate`);
+}
+
+export function rebuildRagIndex() {
+	return request.post<{
+		version: number;
+		generated_at: string;
+		case_count: number;
+		valid_case_count: number;
+		manifest_path: string;
+		index_path: string;
+	}>("/api/gui/rag/index/rebuild");
+}
+
+export function getRagGuide() {
+	return request.get<RagGuideResponse>("/api/gui/rag/guide");
 }
