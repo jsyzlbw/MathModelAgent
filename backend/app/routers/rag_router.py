@@ -5,10 +5,20 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 
 from app.services.rag_case_library import RagCaseLibrary
+from app.services.rag_vector_index_service import RagVectorIndexService
 
 router = APIRouter(tags=["gui-rag"])
+
+
+class RagQueryRequest(BaseModel):
+    """RAG retrieval request."""
+
+    query: str = Field(min_length=1)
+    top_k: int = 5
+    filters: dict[str, Any] = Field(default_factory=dict)
 
 
 def get_rag_case_library() -> RagCaseLibrary:
@@ -54,6 +64,27 @@ async def rebuild_rag_index(
         "index_path": str(library.index_path),
         "valid_case_count": sum(1 for case in manifest["cases"] if case["status"] == "valid"),
     }
+
+
+@router.post("/vector/rebuild")
+async def rebuild_rag_vector_index(
+    library: RagCaseLibrary = Depends(get_rag_case_library),
+) -> dict[str, Any]:
+    """Rebuild chunked local vector index for the RAG library."""
+    return RagVectorIndexService(library.root).rebuild()
+
+
+@router.post("/query")
+async def query_rag(
+    request: RagQueryRequest,
+    library: RagCaseLibrary = Depends(get_rag_case_library),
+) -> dict[str, Any]:
+    """Query chunked RAG index with traceable hits."""
+    return RagVectorIndexService(library.root).query(
+        request.query,
+        top_k=request.top_k,
+        filters=request.filters,
+    )
 
 
 @router.get("/guide")

@@ -7,6 +7,7 @@ import {
 	type ProgressEvent,
 	type RagCaseItem,
 	type RagGuideResponse,
+	type RagQueryResponse,
 	type RevisionRequestRecord,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
@@ -32,8 +33,10 @@ import {
 	listWorkspaceInputs,
 	parseWorkspaceInputs,
 	previewWorkspaceInput,
+	queryRag,
 	readWorkspaceArtifact,
 	rebuildRagIndex,
+	rebuildRagVectorIndex,
 	resumeWorkspace,
 	runWorkspace,
 	saveGuiConfig,
@@ -139,6 +142,10 @@ const ragCases = ref<RagCaseItem[]>([]);
 const ragGuide = ref<RagGuideResponse | null>(null);
 const ragLoading = ref(false);
 const ragRebuilding = ref(false);
+const ragVectorRebuilding = ref(false);
+const ragQuerying = ref(false);
+const ragQueryText = ref("");
+const ragQueryResult = ref<RagQueryResponse | null>(null);
 const ragIndexMessage = ref("");
 const currentPlan = ref<WorkspacePlan | null>(null);
 const planningBusy = ref(false);
@@ -820,6 +827,36 @@ const rebuildRagLibraryIndex = async () => {
 	}
 };
 
+const rebuildRagVectorLibraryIndex = async () => {
+	ragVectorRebuilding.value = true;
+	ragIndexMessage.value = "";
+	try {
+		const response = await rebuildRagVectorIndex();
+		ragIndexMessage.value = `向量索引已重建：${response.data.chunk_count} chunks / ${response.data.vector_count} vectors`;
+	} catch (error) {
+		console.error("重建 RAG 向量索引失败:", error);
+		ragIndexMessage.value = "向量索引重建失败，请检查范文结构和后端服务。";
+	} finally {
+		ragVectorRebuilding.value = false;
+	}
+};
+
+const queryRagLibrary = async () => {
+	const query = ragQueryText.value.trim();
+	if (!query) return;
+	ragQuerying.value = true;
+	try {
+		const response = await queryRag(query, 5);
+		ragQueryResult.value = response.data;
+	} catch (error) {
+		console.error("RAG 检索失败:", error);
+		ragQueryResult.value = null;
+		ragIndexMessage.value = "RAG 检索失败，请先重建向量索引。";
+	} finally {
+		ragQuerying.value = false;
+	}
+};
+
 const addLocalMessage = (role: LocalMessage["role"], content: string) => {
 	localMessages.value.push({
 		role,
@@ -1187,10 +1224,34 @@ onBeforeUnmount(() => {
                   <Button size="xs" :disabled="ragRebuilding" @click="rebuildRagLibraryIndex">
                     {{ ragRebuilding ? "重建中" : "重建索引" }}
                   </Button>
+                  <Button size="xs" variant="outline" :disabled="ragVectorRebuilding" @click="rebuildRagVectorLibraryIndex">
+                    {{ ragVectorRebuilding ? "向量中" : "向量索引" }}
+                  </Button>
+                </div>
+                <div class="mt-3 flex gap-2">
+                  <Input v-model="ragQueryText" placeholder="检索相似题型、方法或写法" @keyup.enter="queryRagLibrary" />
+                  <Button size="xs" :disabled="ragQuerying || !ragQueryText.trim()" @click="queryRagLibrary">
+                    {{ ragQuerying ? "检索中" : "检索" }}
+                  </Button>
                 </div>
                 <p v-if="ragIndexMessage" class="mt-2 rounded-md border bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
                   {{ ragIndexMessage }}
                 </p>
+                <div v-if="ragQueryResult" class="mt-3 rounded-md border bg-white p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <span class="text-xs font-medium">检索命中</span>
+                    <span class="font-mono text-[11px] text-zinc-500">{{ ragQueryResult.hit_count }} hits</span>
+                  </div>
+                  <div class="flex max-h-52 flex-col gap-2 overflow-auto pr-1">
+                    <div v-for="hit in ragQueryResult.hits" :key="hit.chunk_id" class="rounded-md border bg-zinc-50 p-2">
+                      <div class="mb-1 flex items-center justify-between gap-2">
+                        <span class="truncate font-mono text-[11px]">{{ hit.case_id }} / {{ hit.source_path }}</span>
+                        <span class="shrink-0 font-mono text-[11px] text-zinc-500">{{ hit.score.toFixed(3) }}</span>
+                      </div>
+                      <p class="line-clamp-3 text-xs leading-5 text-zinc-700">{{ hit.text }}</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="mt-3 flex flex-col gap-2">
                   <div v-if="!ragCases.length" class="rounded-md border bg-white p-3 text-zinc-500">
                     当前没有用户导入的范文案例。

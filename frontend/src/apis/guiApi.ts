@@ -146,6 +146,23 @@ export interface RagGuideResponse {
 	example: string[];
 }
 
+export interface RagVectorHit {
+	case_id: string;
+	chunk_id: string;
+	source_path: string;
+	text: string;
+	score: number;
+	metadata: Record<string, unknown>;
+}
+
+export interface RagQueryResponse {
+	query: string;
+	top_k: number;
+	hit_count: number;
+	hits: RagVectorHit[];
+	retrieval_log_path: string;
+}
+
 export interface WorkspacePlan {
 	version: number;
 	status: "draft" | "approved" | "skipped" | "aborted" | string;
@@ -337,6 +354,25 @@ export function rebuildRagIndex() {
 		manifest_path: string;
 		index_path: string;
 	}>("/api/gui/rag/index/rebuild");
+}
+
+export function rebuildRagVectorIndex() {
+	return request.post<{
+		version: number;
+		status: string;
+		generated_at: string;
+		chunk_count: number;
+		vector_count: number;
+		chunks_path: string;
+		vectors_path: string;
+	}>("/api/gui/rag/vector/rebuild");
+}
+
+export function queryRag(query: string, topK = 5) {
+	return request.post<RagQueryResponse>("/api/gui/rag/query", {
+		query,
+		top_k: topK,
+	});
 }
 
 export function getRagGuide() {

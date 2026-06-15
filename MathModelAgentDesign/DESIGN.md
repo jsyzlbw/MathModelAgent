@@ -123,6 +123,17 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 系统会生成 `input/parsed/parse_qa.md`，列出缺失题面文本、需 provider 解析等 QA 提醒。
 - 后端提供 `/api/gui/workspaces/{task_id}/inputs/parse` 和 `/inputs/parsed`；Studio 上传卡新增“解析输入”按钮和 QA 摘要。
 
+## 1.11 T 路线已落地 RAG v2 向量检索闭环
+
+结构化范文库现在具备 chunk 级检索和引用回溯基础：
+
+- 新增 `RagVectorIndexService`，对有效案例中的 Markdown、文本、CSV、JSON、TeX 文件进行段落切分。
+- 系统会生成 `.rag_chunks.jsonl` 和 `.rag_vectors.jsonl`，当前使用 deterministic hash embedding 作为离线后备，后续可替换为 Voyage 等在线 embedding provider。
+- `POST /api/gui/rag/vector/rebuild` 可以重建 chunk/vector 索引，`POST /api/gui/rag/query` 可以按 query 返回 ranked hits。
+- 每条命中都包含 `case_id`、`chunk_id`、`source_path`、`score`、`text` 和 metadata，供 Writer 后续记录引用来源。
+- 每次检索都会写入 `.rag_retrieval_log.jsonl`，便于复盘 Agent 引用了哪些范文片段。
+- Studio 的 RAG 面板新增向量索引和检索控件，用户能直接看到命中案例、来源文件和片段。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
