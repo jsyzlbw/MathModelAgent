@@ -16,6 +16,7 @@ from app.routers.modeling_router import (
     run_modeling_task_async,
 )
 from app.schemas.enums import CompTemplate, FormatOutPut
+from app.services.input_manifest_service import InputManifestService
 from app.utils.common_utils import create_task_id, create_work_dir, ensure_safe_task_id
 
 router = APIRouter(tags=["gui-workspace"])
@@ -150,7 +151,38 @@ async def upload_workspace_files(
             }
         )
 
-    return {"task_id": safe_task_id, "files": saved_files}
+    manifest = InputManifestService(root).rebuild()
+
+    return {"task_id": safe_task_id, "files": saved_files, "manifest": manifest}
+
+
+@router.get("/workspaces/{task_id}/inputs")
+async def list_workspace_inputs(task_id: str) -> dict:
+    """List typed uploaded input manifest items."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    return {
+        "task_id": safe_task_id,
+        "manifest": InputManifestService(root).load(),
+    }
+
+
+@router.get("/workspaces/{task_id}/inputs/preview")
+async def preview_workspace_input(task_id: str, path: str) -> dict:
+    """Preview one uploaded input file by workspace-relative path."""
+    safe_task_id = _require_safe_task_id(task_id)
+    root = _workspace_root(safe_task_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="工作区不存在")
+    try:
+        item = InputManifestService(root).preview(path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="文件不存在") from exc
+    return {"task_id": safe_task_id, "item": item}
 
 
 def _read_problem_text(root: Path) -> str:

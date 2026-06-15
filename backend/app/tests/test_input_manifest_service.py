@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from app.main import app
 from app.services.input_manifest_service import InputManifestService
 
 
@@ -44,3 +47,55 @@ def test_input_manifest_categorizes_image_by_suffix(tmp_path: Path) -> None:
     assert item["kind"] == "chat"
     assert item["category"] == "image"
     assert item["preview"] == "Image file metadata captured; visual OCR is deferred."
+
+
+def test_input_manifest_api_updates_after_upload_and_lists_inputs(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(app)
+    task_id = client.post("/api/gui/workspaces", json={"title": "Inputs"}).json()[
+        "task_id"
+    ]
+
+    upload_response = client.post(
+        f"/api/gui/workspaces/{task_id}/files",
+        params={"kind": "problem"},
+        files={"files": ("problem.txt", b"optimize routing", "text/plain")},
+    )
+    list_response = client.get(f"/api/gui/workspaces/{task_id}/inputs")
+    preview_response = client.get(
+        f"/api/gui/workspaces/{task_id}/inputs/preview",
+        params={"path": "input/problem/problem.txt"},
+    )
+
+    assert upload_response.status_code == 200
+    manifest_path = (
+        tmp_path / "project" / "work_dir" / task_id / "input" / "input_manifest.json"
+    )
+    assert manifest_path.exists()
+    assert list_response.status_code == 200
+    assert list_response.json()["manifest"]["items"][0]["path"] == (
+        "input/problem/problem.txt"
+    )
+    assert preview_response.status_code == 200
+    assert "optimize routing" in preview_response.json()["item"]["preview"]
+
+
+def test_input_manifest_api_rejects_preview_traversal(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = TestClient(app)
+    task_id = client.post("/api/gui/workspaces", json={"title": "Inputs"}).json()[
+        "task_id"
+    ]
+
+    response = client.get(
+        f"/api/gui/workspaces/{task_id}/inputs/preview",
+        params={"path": "../secret.txt"},
+    )
+
+    assert response.status_code == 400

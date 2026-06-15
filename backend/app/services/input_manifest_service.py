@@ -73,7 +73,7 @@ class InputManifestService:
         category = self._category_for_suffix(suffix)
         return {
             "kind": kind,
-            "path": path.relative_to(self.workspace).as_posix(),
+            "path": path.resolve().relative_to(self.workspace.resolve()).as_posix(),
             "filename": path.name,
             "suffix": suffix,
             "category": category,
