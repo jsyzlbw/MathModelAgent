@@ -233,6 +233,8 @@ docker-compose up
 - `POST /api/gui/workspaces/{task_id}/run|stop|resume`：启动、停止或记录继续修改请求。
 - `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
 - `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
+- `POST /api/gui/workspaces/{task_id}/artifacts/package`：生成最终提交包。
+- `GET /api/gui/workspaces/{task_id}/artifacts/package/download`：下载提交包 zip。
 
 前端 GUI MVP 已提供 `/studio` 工作台。推荐使用流程：
 
@@ -252,6 +254,8 @@ docker-compose up
 - `review/revision_summary.md`：把修订队列整理为可读摘要，供后续 Agent 续跑读取。
 
 上传区会维护 `input/input_manifest.json`，让用户看到 Agent 将读取的完整任务包。Manifest 记录每个文件的分类、路径、大小、SHA256 和轻量预览。当前分类包括 `text`、`table`、`image`、`pdf`、`document`、`archive` 和 `binary`；文本和 CSV/TSV 会直接给出预览，PDF、图片和 Office 文档的深度 OCR/解析留给 MinerU 或后续多模态 provider。
+
+产物区支持生成最终提交包。点击“生成提交包”会写入 `exports/artifact_manifest.json`，并创建 `exports/submission_package.zip`。提交包会跳过隐藏文件、输入文件和页面对话记录，只包含可提交/可审查的论文、图表、代码、数据表、日志和 manifest。
 
 计划阶段支持 6 种 HIL 动作：
 

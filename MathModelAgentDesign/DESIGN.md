@@ -92,6 +92,16 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 文本文件直接预览前 2000 字符；CSV/TSV 预览列名和前 5 行；PDF、图片和 Office 文档先记录元数据，深度解析交给 MinerU 或后续多模态 provider。
 - 后端提供 `/api/gui/workspaces/{task_id}/inputs` 和 `/inputs/preview`；Studio 上传卡会显示输入清单和预览面板。
 
+## 1.8 Q 路线已落地产物提交包
+
+产物区现在支持从工作区生成可下载提交包：
+
+- 后端 `ArtifactPackageService` 扫描工作区可审查产物，生成 `exports/artifact_manifest.json`。
+- 后端同时创建 `exports/submission_package.zip`，包含论文、图表、代码、数据表、日志和 artifact manifest。
+- 打包过程跳过隐藏文件、缓存目录、`workspace.json`、`input/` 和 `conversation/`，避免把用户输入包或对话状态混进最终提交包。
+- 后端提供 `/api/gui/workspaces/{task_id}/artifacts/package` 和 `/artifacts/package/download`。
+- Studio 产物卡提供“生成提交包”和“下载”按钮，并在生成后展示 zip 路径、文件数和大小。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
