@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import {
 	type GuiConfig,
+	type ArtifactItem,
+	type ProgressEvent,
 	type UploadedWorkspaceFile,
 	type WorkspaceFileKind,
 	createGuiWorkspace,
+	getWorkspaceArtifactDownloadUrl,
+	getWorkspaceEvents,
+	listWorkspaceArtifacts,
 	type ProviderTestResponse,
 	getGuiConfig,
+	readWorkspaceArtifact,
+	resumeWorkspace,
+	runWorkspace,
 	saveGuiConfig,
+	stopWorkspace,
 	testGuiProvider,
 	uploadWorkspaceFiles,
 } from "@/apis/guiApi";
@@ -37,7 +46,7 @@ import {
 	Square,
 	UploadCloud,
 } from "lucide-vue-next";
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 type ConfigPath = string[];
 
@@ -63,6 +72,12 @@ interface ApiRowForm {
 	result: ProviderTestResponse | null;
 }
 
+interface LocalMessage {
+	role: "user" | "agent";
+	content: string;
+	createdAt: string;
+}
+
 const { toast } = useToast();
 
 const activeTaskId = ref("");
@@ -72,18 +87,20 @@ const planDraft = ref(
 );
 const chatInput = ref("");
 const problemText = ref("");
-
-const progressItems = [
-	{ stage: "workspace.created", message: "等待创建工作区", tone: "muted" },
-	{ stage: "config.pending", message: "等待配置 API 并测试通断", tone: "muted" },
-	{ stage: "plan.pending", message: "等待用户与 Agent 确认执行方案", tone: "muted" },
-];
-
-const artifactItems = [
-	{ path: "res.md", type: "markdown", status: "待生成" },
-	{ path: "res.pdf", type: "pdf", status: "待生成" },
-	{ path: "figures/", type: "folder", status: "待生成" },
-];
+const localMessages = ref<LocalMessage[]>([
+	{
+		role: "agent",
+		content: "请先配置 API、导入/确认知识库结构，再上传本次题目。我会根据你的意见整理执行计划。",
+		createdAt: new Date().toISOString(),
+	},
+]);
+const running = ref(false);
+const progressEvents = ref<ProgressEvent[]>([]);
+const eventCursor = ref(0);
+const artifacts = ref<ArtifactItem[]>([]);
+const artifactPreview = ref<{ path: string; content: string } | null>(null);
+const artifactLoading = ref(false);
+let progressTimer: ReturnType<typeof setInterval> | null = null;
 
 const apiRowDefs: ApiRowDefinition[] = [
 	{
@@ -235,6 +252,29 @@ const uploadKinds = [
 	{ key: "requirement" as const, label: "其他要求", icon: UploadCloud },
 	{ key: "chat" as const, label: "对话附件", icon: MessageSquare },
 ];
+
+const displayedProgressEvents = computed(() => {
+	if (progressEvents.value.length) return progressEvents.value;
+	return [
+		{
+			seq: 0,
+			timestamp: "",
+			level: "info",
+			stage: "workspace.pending",
+			message: "等待创建工作区并启动任务",
+			metadata: {},
+		},
+	];
+});
+
+const displayedArtifacts = computed(() => {
+	if (artifacts.value.length) return artifacts.value;
+	return [
+		{ path: "res.md", filename: "res.md", file_type: "markdown", size: 0 },
+		{ path: "res.pdf", filename: "res.pdf", file_type: "pdf", size: 0 },
+		{ path: "figures/", filename: "figures", file_type: "folder", size: 0 },
+	];
+});
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
 	return !!value && typeof value === "object" && !Array.isArray(value);
@@ -388,6 +428,10 @@ const createWorkspace = async () => {
 		const response = await createGuiWorkspace(workspaceTitle.value);
 		activeTaskId.value = response.data.task_id;
 		uploadStatus.value = {};
+		progressEvents.value = [];
+		eventCursor.value = 0;
+		artifacts.value = [];
+		artifactPreview.value = null;
 		toast({
 			title: "工作区已创建",
 			description: response.data.task_id,
@@ -433,8 +477,139 @@ const uploadFilesForKind = async (kind: WorkspaceFileKind, event: Event) => {
 	}
 };
 
+const addLocalMessage = (role: LocalMessage["role"], content: string) => {
+	localMessages.value.push({
+		role,
+		content,
+		createdAt: new Date().toISOString(),
+	});
+};
+
+const sendChatMessage = () => {
+	const content = chatInput.value.trim();
+	if (!content) return;
+	addLocalMessage("user", content);
+	addLocalMessage("agent", "收到。我会把这条意见纳入执行计划或后续修改请求。");
+	chatInput.value = "";
+};
+
+const refreshEvents = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await getWorkspaceEvents(activeTaskId.value, eventCursor.value);
+		if (response.data.events.length) {
+			progressEvents.value = [...progressEvents.value, ...response.data.events];
+			eventCursor.value = response.data.next_after;
+		}
+	} catch (error) {
+		console.error("读取进度事件失败:", error);
+	}
+};
+
+const refreshArtifacts = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await listWorkspaceArtifacts(activeTaskId.value);
+		artifacts.value = response.data.artifacts;
+	} catch (error) {
+		console.error("读取产物失败:", error);
+	}
+};
+
+const startProgressPolling = () => {
+	if (progressTimer) return;
+	progressTimer = setInterval(() => {
+		refreshEvents();
+		refreshArtifacts();
+	}, 2000);
+};
+
+const stopProgressPolling = () => {
+	if (progressTimer) {
+		clearInterval(progressTimer);
+		progressTimer = null;
+	}
+};
+
+const startRun = async () => {
+	if (!activeTaskId.value) {
+		await createWorkspace();
+	}
+	if (!activeTaskId.value) return;
+	running.value = true;
+	try {
+		await runWorkspace(activeTaskId.value, {
+			problem_text: problemText.value,
+			mode: "real",
+			format_output: "Markdown",
+		});
+		addLocalMessage("agent", "任务已启动。我会持续读取后端进度事件。");
+		await refreshEvents();
+		startProgressPolling();
+	} catch (error) {
+		console.error("启动任务失败:", error);
+		running.value = false;
+		toast({
+			title: "启动失败",
+			description: "请确认已上传题目或填写题目文本，并检查后端服务。",
+			variant: "destructive",
+		});
+	}
+};
+
+const stopRun = async () => {
+	if (!activeTaskId.value) return;
+	try {
+		const response = await stopWorkspace(activeTaskId.value);
+		running.value = false;
+		stopProgressPolling();
+		addLocalMessage("agent", response.data.message);
+		await refreshEvents();
+	} catch (error) {
+		console.error("停止任务失败:", error);
+	}
+};
+
+const requestResume = async () => {
+	if (!activeTaskId.value) return;
+	const instruction = chatInput.value.trim() || planDraft.value;
+	try {
+		const response = await resumeWorkspace(activeTaskId.value, instruction);
+		addLocalMessage("user", instruction);
+		addLocalMessage("agent", response.data.message);
+		chatInput.value = "";
+		await refreshEvents();
+	} catch (error) {
+		console.error("发送修改请求失败:", error);
+	}
+};
+
+const openArtifact = async (artifact: ArtifactItem) => {
+	if (!activeTaskId.value || !artifact.path || artifact.path.endsWith("/")) return;
+	if (!["md", "txt", "tex", "bib", "json", "csv", "log", "py"].includes(artifact.file_type)) {
+		window.open(getWorkspaceArtifactDownloadUrl(activeTaskId.value, artifact.path), "_blank");
+		return;
+	}
+	artifactLoading.value = true;
+	try {
+		const response = await readWorkspaceArtifact(activeTaskId.value, artifact.path);
+		artifactPreview.value = {
+			path: response.data.path,
+			content: response.data.content,
+		};
+	} catch (error) {
+		console.error("读取产物失败:", error);
+	} finally {
+		artifactLoading.value = false;
+	}
+};
+
 onMounted(() => {
 	loadConfig();
+});
+
+onBeforeUnmount(() => {
+	stopProgressPolling();
 });
 </script>
 
@@ -459,11 +634,11 @@ onMounted(() => {
             <CheckCircle2 />
             {{ workspaceCreating ? "创建中" : "新建工作区" }}
           </Button>
-          <Button size="sm">
+          <Button size="sm" :disabled="running" @click="startRun">
             <Play />
-            开始运行
+            {{ running ? "运行中" : "开始运行" }}
           </Button>
-          <Button variant="outline" size="sm" class="border-zinc-700 bg-zinc-950 text-zinc-50 hover:bg-zinc-900">
+          <Button variant="outline" size="sm" class="border-zinc-700 bg-zinc-950 text-zinc-50 hover:bg-zinc-900" @click="stopRun">
             <Square />
             停止
           </Button>
@@ -629,11 +804,22 @@ onMounted(() => {
             </CardHeader>
             <CardContent class="flex h-[420px] flex-col gap-3">
               <ScrollArea class="min-h-0 flex-1 rounded-md border bg-white p-3">
-                <div class="text-sm text-zinc-500">暂无消息。创建工作区后，可以从这里开始讨论计划。</div>
+                <div class="flex flex-col gap-3">
+                  <div
+                    v-for="message in localMessages"
+                    :key="message.createdAt + message.content"
+                    class="max-w-[88%] rounded-md border px-3 py-2 text-sm"
+                    :class="message.role === 'user' ? 'ml-auto bg-zinc-950 text-zinc-50' : 'bg-zinc-50 text-zinc-800'"
+                  >
+                    <div class="mb-1 text-[11px] opacity-70">{{ message.role === "user" ? "User" : "Agent" }}</div>
+                    <div class="whitespace-pre-wrap">{{ message.content }}</div>
+                  </div>
+                </div>
               </ScrollArea>
               <div class="flex gap-2">
                 <Input v-model="chatInput" placeholder="输入你的想法、约束或修改意见" />
-                <Button>发送</Button>
+                <Button @click="sendChatMessage">发送</Button>
+                <Button variant="outline" :disabled="!activeTaskId" @click="requestResume">修改</Button>
               </div>
             </CardContent>
           </Card>
@@ -661,9 +847,25 @@ onMounted(() => {
           </CardHeader>
           <CardContent>
             <div class="flex flex-col gap-3">
-              <div v-for="item in progressItems" :key="item.stage" class="rounded-md border bg-white p-3">
-                <div class="font-mono text-xs text-zinc-500">{{ item.stage }}</div>
+              <div v-for="item in displayedProgressEvents" :key="`${item.seq}-${item.stage}`" class="rounded-md border bg-white p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-mono text-xs text-zinc-500">{{ item.stage }}</div>
+                  <span
+                    class="rounded border px-2 py-0.5 text-[11px]"
+                    :class="{
+                      'border-green-200 bg-green-50 text-green-700': item.level === 'success',
+                      'border-red-200 bg-red-50 text-red-700': item.level === 'error',
+                      'border-amber-200 bg-amber-50 text-amber-700': item.level === 'warning',
+                      'border-zinc-200 bg-zinc-50 text-zinc-600': item.level === 'info',
+                    }"
+                  >
+                    {{ item.level }}
+                  </span>
+                </div>
                 <div class="mt-1 text-sm">{{ item.message }}</div>
+                <div v-if="item.timestamp" class="mt-2 font-mono text-[11px] text-zinc-400">
+                  {{ new Date(item.timestamp).toLocaleTimeString() }}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -676,13 +878,27 @@ onMounted(() => {
           </CardHeader>
           <CardContent>
             <div class="flex flex-col gap-2">
-              <div v-for="item in artifactItems" :key="item.path" class="flex items-center justify-between gap-3 rounded-md border bg-white p-3">
+              <button
+                v-for="item in displayedArtifacts"
+                :key="item.path"
+                type="button"
+                class="flex items-center justify-between gap-3 rounded-md border bg-white p-3 text-left transition-colors hover:bg-zinc-50"
+                :disabled="!artifacts.length"
+                @click="openArtifact(item)"
+              >
                 <div class="min-w-0">
                   <div class="truncate font-mono text-sm">{{ item.path }}</div>
-                  <div class="text-xs text-zinc-500">{{ item.type }}</div>
+                  <div class="text-xs text-zinc-500">{{ item.file_type }} · {{ item.size }} bytes</div>
                 </div>
-                <span class="shrink-0 rounded border px-2 py-0.5 text-xs text-zinc-600">{{ item.status }}</span>
+                <span class="shrink-0 rounded border px-2 py-0.5 text-xs text-zinc-600">{{ artifacts.length ? "打开" : "待生成" }}</span>
+              </button>
+            </div>
+            <div class="mt-3 rounded-md border bg-zinc-950 p-3 text-zinc-50">
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="font-mono text-xs text-zinc-400">{{ artifactPreview?.path || "preview" }}</span>
+                <span class="text-xs text-zinc-500">{{ artifactLoading ? "读取中" : "" }}</span>
               </div>
+              <pre class="max-h-64 overflow-auto whitespace-pre-wrap text-xs leading-5">{{ artifactPreview?.content || "选择文本产物后预览内容。" }}</pre>
             </div>
           </CardContent>
         </Card>
