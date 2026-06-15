@@ -227,6 +227,16 @@ docker-compose up
 - `GET /api/gui/workspaces/{task_id}/events`：读取 `progress_events.jsonl`，让用户看到 Agent 当前进度。
 - `GET /api/gui/workspaces/{task_id}/artifacts`：列出、预览和下载任务产物。
 
+前端 GUI MVP 已提供 `/studio` 工作台。推荐使用流程：
+
+1. 在“设置”中填写 LLM、搜索、论文网站、文档解析和数据平台配置。
+2. 点击每个 API 配置行右侧的“测试”按钮，逐项确认通断。
+3. 按 RAG 面板中的结构填充 `backend/data/rag_cases/` 范文知识库。
+4. 新建工作区，上传本次赛题、附件、格式样例和额外要求。
+5. 在对话区和 Agent 讨论，修改执行计划。
+6. 点击“开始运行”，在右侧进度栏观察 Agent 当前阶段。
+7. 在产物栏预览 `res.md`、日志、代码和下载 PDF/DOCX 等最终文件。
+
 ### 💻 方案二: 本地部署（推荐项目开发者部署）
 
 > 确保电脑中安装好 Python, Nodejs, **Redis** 环境

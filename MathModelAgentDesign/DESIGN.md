@@ -38,6 +38,18 @@ RAG 知识库初始为空目录，由用户自行填充。仓库只保留目录�
 - `GET /api/gui/workspaces/{task_id}/events`：读取工作区内的 `progress_events.jsonl`，用于前端持续展示 Agent 进展。
 - `GET /api/gui/workspaces/{task_id}/artifacts`、`content`、`download`：列出、预览和下载生成产物。
 
+## 1.3 L 路线已落地前端工作台
+
+前端新增 `/studio` GUI MVP 工作台，并保持旧首页、旧 chat 和旧 task 页面可用。`/studio` 第一屏就是实际工作台，不做营销页：
+
+- 设置面板读取 `/api/gui/config`，保存到 ignored local JSON，并为每个 API 配置行提供独立“测试”按钮。
+- RAG 面板展示 `backend/data/rag_cases/` 的用户填充规范，强调知识库初始为空。
+- 本次题目上传区按 `problem`、`attachment`、`template`、`requirement` 和 `chat` 分类上传文件。
+- 对话区支持用户记录讨论意见，计划区可编辑执行 plan。
+- 顶部运行按钮调用 `/api/gui/workspaces/{task_id}/run`，停止按钮调用 `/stop`。
+- 右侧进度栏轮询 `/events`，持续显示 Agent 阶段事件。
+- 产物栏读取 `/artifacts`，支持文本预览和非文本下载。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
