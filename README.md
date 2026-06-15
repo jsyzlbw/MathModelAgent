@@ -223,6 +223,8 @@ docker-compose up
 - `POST /api/gui/config/test-provider`：测试单个 provider 通断，用于 GUI 中每个 API 配置行旁边的测试按钮。
 - `POST /api/gui/workspaces`：创建一次建模任务工作区。
 - `POST /api/gui/workspaces/{task_id}/files`：按 `problem`、`attachment`、`template`、`requirement`、`chat` 分类上传文件。
+- `GET /api/gui/workspaces/{task_id}/inputs`：读取本次任务上传文件的多模态输入清单。
+- `GET /api/gui/workspaces/{task_id}/inputs/preview`：预览文本/表格输入，其他类型返回元数据提示。
 - `POST /api/gui/workspaces/{task_id}/planning/draft`：基于题目文本和工作区输入生成结构化执行计划草案。
 - `GET /api/gui/workspaces/{task_id}/planning`：读取当前工作区的 `planning/plan.json`。
 - `POST /api/gui/workspaces/{task_id}/planning/action`：记录计划阶段 HIL 动作。
@@ -248,6 +250,8 @@ docker-compose up
 - `conversation/messages.jsonl`：保存用户和 Agent 的对话消息。
 - `review/revision_requests.jsonl`：保存用户对初稿、图表、代码或计划的修订请求。
 - `review/revision_summary.md`：把修订队列整理为可读摘要，供后续 Agent 续跑读取。
+
+上传区会维护 `input/input_manifest.json`，让用户看到 Agent 将读取的完整任务包。Manifest 记录每个文件的分类、路径、大小、SHA256 和轻量预览。当前分类包括 `text`、`table`、`image`、`pdf`、`document`、`archive` 和 `binary`；文本和 CSV/TSV 会直接给出预览，PDF、图片和 Office 文档的深度 OCR/解析留给 MinerU 或后续多模态 provider。
 
 计划阶段支持 6 种 HIL 动作：
 

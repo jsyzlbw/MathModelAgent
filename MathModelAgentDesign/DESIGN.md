@@ -82,6 +82,16 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 创建对话消息会写入 `chat.message_added` 进度事件；创建修订请求会写入 `revision.request_queued` 进度事件。
 - Studio 的“修改”按钮会创建结构化修订请求，并继续调用旧的 `/resume` 事件作为兼容层。
 
+## 1.7 P 路线已落地多模态输入清单
+
+本次题目上传区现在不只是保存文件，还会生成 Agent 可读取的输入清单：
+
+- 后端 `InputManifestService` 扫描 `input/problem`、`input/attachments`、`input/template`、`input/requirements` 和 `input/chat_uploads`。
+- 每次上传后会重建 `input/input_manifest.json`，记录 kind、路径、后缀、分类、大小、SHA256 和轻量 preview。
+- 分类包括 `text`、`table`、`image`、`pdf`、`document`、`archive` 和 `binary`。
+- 文本文件直接预览前 2000 字符；CSV/TSV 预览列名和前 5 行；PDF、图片和 Office 文档先记录元数据，深度解析交给 MinerU 或后续多模态 provider。
+- 后端提供 `/api/gui/workspaces/{task_id}/inputs` 和 `/inputs/preview`；Studio 上传卡会显示输入清单和预览面板。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先
