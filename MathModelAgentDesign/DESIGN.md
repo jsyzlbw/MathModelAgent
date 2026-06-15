@@ -155,6 +155,16 @@ Studio 对话区和“修改”动作现在具备工作区级持久化能力：
 - 每条 source 都有稳定 `source_id`、provider、source_type、title、url、summary 和 metadata。
 - 后端提供 `/api/gui/workspaces/{task_id}/sources/query` 和 `/sources`；Studio 右侧新增来源登记控件，可以把查询结果写入 source registry。
 
+## 1.14 W 路线已落地建模策略与 Solver Template
+
+Pipeline 的建模阶段现在有明确的题型识别和 solver 产物契约：
+
+- 新增 `ModelingStrategyService`，基于题面关键词识别 prediction、optimization、evaluation、classification、network、simulation、risk、geospatial 和 generic 类型。
+- 每类题型有候选模型库，例如预测题包含 ARIMA、回归、梯度提升；优化题包含线性规划、整数规划、多目标优化。
+- 系统会生成 `reports/model_candidates.json` 和 `reports/model_decision.md`，记录题型分数、候选模型和选择理由。
+- 新增 `SolverTemplateService`，根据选定题型生成 `code/solver_<problem_type>.py` 和 `results/results_registry.json`。
+- Pipeline 的 `model` 和 `solve` 阶段已接入上述服务，后续真实求解代码可以在 solver template 基础上扩展。
+
 ## 2. 设计原则
 
 ### 2.1 证据链优先

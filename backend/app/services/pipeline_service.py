@@ -11,8 +11,10 @@ from app.core.progress_events import append_progress_event
 from app.services.artifact_package_service import ArtifactPackageService
 from app.services.input_manifest_service import InputManifestService
 from app.services.input_parsing_service import InputParsingService
+from app.services.modeling_strategy_service import ModelingStrategyService
 from app.services.planning_service import PlanningService
 from app.services.rag_vector_index_service import RagVectorIndexService
+from app.services.solver_template_service import SolverTemplateService
 
 
 PipelineStage = Callable[[], list[dict[str, Any]]]
@@ -173,14 +175,7 @@ class PipelineService:
         ]
 
     def _stage_model(self) -> list[dict[str, Any]]:
-        report = self.workspace / "reports" / "model_decision.md"
-        report.parent.mkdir(parents=True, exist_ok=True)
-        report.write_text(
-            "# Model Decision\n\n"
-            "Use a staged modeling approach: problem decomposition, baseline model, "
-            "optimization or evaluation model, and sensitivity analysis.\n",
-            encoding="utf-8",
-        )
+        ModelingStrategyService(self.workspace).analyze()
         understanding = self.workspace / "reports" / "problem_understanding.md"
         understanding.write_text(
             "# Problem Understanding\n\n"
@@ -202,38 +197,34 @@ class PipelineService:
                 producer="PipelineModel",
                 depends_on=["execution_plan"],
             ),
+            self._artifact_record(
+                artifact_id="model_candidates",
+                type_="model_candidates",
+                path="reports/model_candidates.json",
+                producer="PipelineModel",
+                depends_on=["execution_plan"],
+            ),
         ]
 
     def _stage_solve(self) -> list[dict[str, Any]]:
-        path = self.workspace / "results" / "results_registry.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(
-                {
-                    "version": 1,
-                    "status": "placeholder",
-                    "claims": [
-                        {
-                            "claim_id": "baseline-result",
-                            "value": "Solver stage prepared; numerical experiments pending.",
-                            "source": "PipelineService",
-                        }
-                    ],
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-            + "\n",
-            encoding="utf-8",
-        )
+        strategy_path = self.workspace / "reports" / "model_candidates.json"
+        strategy = json.loads(strategy_path.read_text(encoding="utf-8"))
+        solver = SolverTemplateService(self.workspace).write_solver(strategy)
         return [
             self._artifact_record(
                 artifact_id="results_registry",
                 type_="results_registry",
-                path="results/results_registry.json",
+                path=solver["results_path"],
                 producer="PipelineSolve",
                 depends_on=["model_decision"],
-            )
+            ),
+            self._artifact_record(
+                artifact_id="solver_code",
+                type_="solver_code",
+                path=solver["solver_path"],
+                producer="PipelineSolve",
+                depends_on=["model_decision"],
+            ),
         ]
 
     def _stage_write(self) -> list[dict[str, Any]]:
