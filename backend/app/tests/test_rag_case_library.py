@@ -2,6 +2,10 @@
 
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from app.main import app
+from app.routers.rag_router import get_rag_case_library
 from app.services.rag_case_library import RagCaseLibrary
 
 
@@ -56,3 +60,46 @@ def test_rag_case_library_builds_keyword_index(tmp_path: Path) -> None:
     assert index["case_count"] == 1
     assert "forecast" in index["cases"][0]["keywords"]
     assert "arima" in index["cases"][0]["keywords"]
+
+
+def make_rag_client(tmp_path: Path) -> TestClient:
+    def override_library() -> RagCaseLibrary:
+        return RagCaseLibrary(tmp_path / "rag_cases")
+
+    app.dependency_overrides[get_rag_case_library] = override_library
+    return TestClient(app)
+
+
+def test_rag_api_lists_cases_and_rebuilds_index(tmp_path: Path) -> None:
+    case_dir = tmp_path / "rag_cases" / "case-api"
+    case_dir.mkdir(parents=True)
+    (case_dir / "problem.md").write_text("forecast", encoding="utf-8")
+    (case_dir / "paper.md").write_text("arima forecast", encoding="utf-8")
+    client = make_rag_client(tmp_path)
+
+    list_response = client.get("/api/gui/rag/cases")
+    rebuild_response = client.post("/api/gui/rag/index/rebuild")
+
+    assert list_response.status_code == 200
+    assert list_response.json()["cases"][0]["case_id"] == "case-api"
+    assert rebuild_response.status_code == 200
+    assert rebuild_response.json()["case_count"] == 1
+
+    app.dependency_overrides.clear()
+
+
+def test_rag_api_validates_case_and_returns_guide(tmp_path: Path) -> None:
+    case_dir = tmp_path / "rag_cases" / "case-invalid"
+    case_dir.mkdir(parents=True)
+    client = make_rag_client(tmp_path)
+
+    validate_response = client.post("/api/gui/rag/cases/case-invalid/validate")
+    guide_response = client.get("/api/gui/rag/guide")
+
+    assert validate_response.status_code == 200
+    assert validate_response.json()["status"] == "invalid"
+    assert "missing_problem_file" in validate_response.json()["issues"]
+    assert guide_response.status_code == 200
+    assert "problem" in guide_response.json()["required_files"]
+
+    app.dependency_overrides.clear()

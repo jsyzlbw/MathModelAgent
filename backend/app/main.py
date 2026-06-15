@@ -11,6 +11,7 @@ from app.routers import (
     files_router,
     gui_workspace_router,
     modeling_router,
+    rag_router,
     ws_router,
 )
 from app.utils.log_util import logger
@@ -45,6 +46,7 @@ app.include_router(files_router.router)
 app.include_router(config_router.router, prefix="/api/gui")
 app.include_router(gui_workspace_router.router, prefix="/api/gui")
 app.include_router(artifacts_router.router, prefix="/api/gui")
+app.include_router(rag_router.router, prefix="/api/gui/rag")
 
 
 # 跨域 CORS
