@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+	type GuiConfig,
+	type ProviderTestResponse,
+	getGuiConfig,
+	saveGuiConfig,
+	testGuiProvider,
+} from "@/apis/guiApi";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -11,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/toast/use-toast";
 import {
 	Activity,
 	Archive,
@@ -25,7 +33,33 @@ import {
 	Square,
 	UploadCloud,
 } from "lucide-vue-next";
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+
+type ConfigPath = string[];
+
+interface ApiRowDefinition {
+	provider: string;
+	label: string;
+	path: ConfigPath;
+	secretKey?: string;
+	fields: Array<{
+		key: string;
+		label: string;
+		placeholder?: string;
+		type?: "text" | "number";
+	}>;
+}
+
+interface ApiRowForm {
+	values: Record<string, string>;
+	secret: string;
+	configured: boolean;
+	preview: string;
+	testing: boolean;
+	result: ProviderTestResponse | null;
+}
+
+const { toast } = useToast();
 
 const activeTaskId = ref("");
 const workspaceTitle = ref("MCM/ICM Workspace");
@@ -47,16 +81,140 @@ const artifactItems = [
 	{ path: "figures/", type: "folder", status: "待生成" },
 ];
 
-const apiRows = [
-	"coordinator",
-	"modeler",
-	"coder",
-	"writer",
-	"tavily",
-	"openalex",
-	"mineru",
-	"humanizer",
+const apiRowDefs: ApiRowDefinition[] = [
+	{
+		provider: "coordinator",
+		label: "协调者 LLM",
+		path: ["llm", "coordinator"],
+		secretKey: "api_key",
+		fields: [
+			{ key: "api_type", label: "API Type", placeholder: "openai-chat" },
+			{ key: "model", label: "Model", placeholder: "gpt-4o" },
+			{ key: "base_url", label: "Base URL", placeholder: "https://api.openai.com/v1" },
+			{ key: "context_window", label: "Context", type: "number" },
+		],
+	},
+	{
+		provider: "modeler",
+		label: "建模手 LLM",
+		path: ["llm", "modeler"],
+		secretKey: "api_key",
+		fields: [
+			{ key: "api_type", label: "API Type", placeholder: "openai-chat" },
+			{ key: "model", label: "Model" },
+			{ key: "base_url", label: "Base URL" },
+			{ key: "context_window", label: "Context", type: "number" },
+		],
+	},
+	{
+		provider: "coder",
+		label: "代码手 LLM",
+		path: ["llm", "coder"],
+		secretKey: "api_key",
+		fields: [
+			{ key: "api_type", label: "API Type", placeholder: "openai-chat" },
+			{ key: "model", label: "Model" },
+			{ key: "base_url", label: "Base URL" },
+			{ key: "context_window", label: "Context", type: "number" },
+		],
+	},
+	{
+		provider: "writer",
+		label: "论文手 LLM",
+		path: ["llm", "writer"],
+		secretKey: "api_key",
+		fields: [
+			{ key: "api_type", label: "API Type", placeholder: "openai-chat" },
+			{ key: "model", label: "Model" },
+			{ key: "base_url", label: "Base URL" },
+			{ key: "context_window", label: "Context", type: "number" },
+		],
+	},
+	{
+		provider: "tavily",
+		label: "Tavily Search",
+		path: ["search", "tavily"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "brave",
+		label: "Brave Search",
+		path: ["search", "brave"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "exa",
+		label: "Exa Search",
+		path: ["search", "exa"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "firecrawl",
+		label: "Firecrawl",
+		path: ["search", "firecrawl"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "openalex",
+		label: "OpenAlex",
+		path: ["academic", "openalex"],
+		secretKey: "api_key",
+		fields: [{ key: "email", label: "Email", placeholder: "you@example.com" }],
+	},
+	{
+		provider: "mineru",
+		label: "MinerU",
+		path: ["document", "mineru"],
+		secretKey: "api_key",
+		fields: [
+			{ key: "mode", label: "Mode", placeholder: "fake / cli / api" },
+			{ key: "api_base_url", label: "Base URL" },
+			{ key: "cli", label: "CLI", placeholder: "mineru" },
+		],
+	},
+	{
+		provider: "humanizer",
+		label: "Humanizer",
+		path: ["humanizer"],
+		secretKey: "api_key",
+		fields: [{ key: "api_base_url", label: "Base URL" }],
+	},
+	{
+		provider: "fred",
+		label: "FRED",
+		path: ["official_data", "fred"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "us_census",
+		label: "US Census",
+		path: ["official_data", "us_census"],
+		secretKey: "api_key",
+		fields: [],
+	},
+	{
+		provider: "noaa",
+		label: "NOAA",
+		path: ["official_data", "noaa"],
+		secretKey: "api_key",
+		fields: [],
+	},
 ];
+
+const configLoading = ref(false);
+const configSaving = ref(false);
+const configError = ref("");
+const maskedConfig = ref<GuiConfig>({});
+const apiForms = ref<Record<string, ApiRowForm>>({});
+
+const configuredCount = computed(
+	() => Object.values(apiForms.value).filter((form) => form.configured).length,
+);
 
 const uploadKinds = [
 	{ key: "problem", label: "赛题文件", icon: FileUp },
@@ -64,6 +222,156 @@ const uploadKinds = [
 	{ key: "template", label: "格式样例", icon: Archive },
 	{ key: "requirement", label: "其他要求", icon: UploadCloud },
 ];
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+};
+
+const getNode = (
+	source: Record<string, unknown>,
+	path: ConfigPath,
+): Record<string, unknown> => {
+	let current: unknown = source;
+	for (const key of path) {
+		if (!isPlainObject(current)) return {};
+		current = current[key];
+	}
+	return isPlainObject(current) ? current : {};
+};
+
+const setNodeValue = (
+	target: Record<string, unknown>,
+	path: ConfigPath,
+	key: string,
+	value: unknown,
+) => {
+	let current = target;
+	for (const part of path) {
+		if (!isPlainObject(current[part])) {
+			current[part] = {};
+		}
+		current = current[part] as Record<string, unknown>;
+	}
+	current[key] = value;
+};
+
+const normalizeConfigValue = (value: string, type?: "text" | "number") => {
+	if (type === "number") {
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : value;
+	}
+	return value;
+};
+
+const resetFormsFromConfig = (config: GuiConfig) => {
+	const forms: Record<string, ApiRowForm> = {};
+	for (const definition of apiRowDefs) {
+		const node = getNode(config, definition.path);
+		const values: Record<string, string> = {};
+		for (const field of definition.fields) {
+			const rawValue = node[field.key];
+			values[field.key] =
+				rawValue === null || rawValue === undefined ? "" : String(rawValue);
+		}
+		const secretKey = definition.secretKey ?? "api_key";
+		forms[definition.provider] = {
+			values,
+			secret: "",
+			configured: Boolean(node[`${secretKey}_configured`]),
+			preview: String(node[`${secretKey}_preview`] ?? ""),
+			testing: false,
+			result: null,
+		};
+	}
+	apiForms.value = forms;
+};
+
+const buildConfigPatch = () => {
+	const patch: Record<string, unknown> = {};
+	for (const definition of apiRowDefs) {
+		const form = apiForms.value[definition.provider];
+		if (!form) continue;
+		for (const field of definition.fields) {
+			setNodeValue(
+				patch,
+				definition.path,
+				field.key,
+				normalizeConfigValue(form.values[field.key] ?? "", field.type),
+			);
+		}
+		if (definition.secretKey && form.secret.trim()) {
+			setNodeValue(patch, definition.path, definition.secretKey, form.secret.trim());
+		}
+	}
+	return patch;
+};
+
+const loadConfig = async () => {
+	configLoading.value = true;
+	configError.value = "";
+	try {
+		const response = await getGuiConfig();
+		maskedConfig.value = response.data;
+		resetFormsFromConfig(response.data);
+	} catch (error) {
+		console.error("加载 GUI 配置失败:", error);
+		configError.value = "无法加载后端配置";
+	} finally {
+		configLoading.value = false;
+	}
+};
+
+const saveConfig = async () => {
+	configSaving.value = true;
+	configError.value = "";
+	try {
+		const response = await saveGuiConfig(buildConfigPatch());
+		maskedConfig.value = response.data;
+		resetFormsFromConfig(response.data);
+		toast({ title: "配置已保存", description: "真实密钥已写入本地 ignored JSON。" });
+	} catch (error) {
+		console.error("保存 GUI 配置失败:", error);
+		configError.value = "保存配置失败";
+		toast({
+			title: "配置保存失败",
+			description: "请检查后端服务是否运行。",
+			variant: "destructive",
+		});
+	} finally {
+		configSaving.value = false;
+	}
+};
+
+const testProviderRow = async (definition: ApiRowDefinition) => {
+	const form = apiForms.value[definition.provider];
+	if (!form) return;
+	form.testing = true;
+	form.result = null;
+	try {
+		const response = await testGuiProvider({
+			provider: definition.provider,
+			config: buildConfigPatch(),
+		});
+		form.result = response.data;
+		if (response.data.ok) {
+			form.configured = true;
+		}
+	} catch (error) {
+		console.error("测试 provider 失败:", error);
+		form.result = {
+			provider: definition.provider,
+			ok: false,
+			status: "request_failed",
+			message: "测试请求失败，请确认后端服务正在运行。",
+		};
+	} finally {
+		form.testing = false;
+	}
+};
+
+onMounted(() => {
+	loadConfig();
+});
 </script>
 
 <template>
@@ -121,17 +429,62 @@ const uploadKinds = [
               </CardHeader>
               <CardContent>
                 <ScrollArea class="h-[calc(100vh-220px)] pr-3">
-                  <div class="flex flex-col gap-3">
-                    <div v-for="row in apiRows" :key="row" class="rounded-md border bg-white p-3">
+                  <div class="mb-3 flex items-center justify-between gap-3">
+                    <div class="text-xs text-zinc-500">
+                      已配置 {{ configuredCount }} / {{ apiRowDefs.length }}
+                    </div>
+                    <Button size="xs" :disabled="configSaving || configLoading" @click="saveConfig">
+                      {{ configSaving ? "保存中" : "保存配置" }}
+                    </Button>
+                  </div>
+                  <p v-if="configError" class="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {{ configError }}
+                  </p>
+                  <div v-if="configLoading" class="rounded-md border bg-white p-4 text-sm text-zinc-500">
+                    正在加载配置...
+                  </div>
+                  <div v-else class="flex flex-col gap-3">
+                    <div v-for="definition in apiRowDefs" :key="definition.provider" class="rounded-md border bg-white p-3">
                       <div class="mb-2 flex items-center justify-between gap-2">
-                        <div class="font-mono text-sm font-medium">{{ row }}</div>
-                        <Button variant="outline" size="xs">测试</Button>
+                        <div class="min-w-0">
+                          <div class="truncate text-sm font-medium">{{ definition.label }}</div>
+                          <div class="font-mono text-[11px] text-zinc-500">{{ definition.provider }}</div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          :disabled="apiForms[definition.provider]?.testing"
+                          @click="testProviderRow(definition)"
+                        >
+                          {{ apiForms[definition.provider]?.testing ? "测试中" : "测试" }}
+                        </Button>
                       </div>
                       <div class="grid gap-2">
-                        <Input placeholder="API Key" type="password" />
-                        <Input v-if="['coordinator','modeler','coder','writer'].includes(row)" placeholder="Model ID" />
+                        <Input
+                          v-if="definition.secretKey"
+                          v-model="apiForms[definition.provider].secret"
+                          :placeholder="apiForms[definition.provider].configured ? `已配置 ${apiForms[definition.provider].preview}` : 'API Key'"
+                          type="password"
+                        />
+                        <label v-for="field in definition.fields" :key="field.key" class="grid gap-1">
+                          <span class="text-[11px] text-zinc-500">{{ field.label }}</span>
+                          <Input
+                            v-model="apiForms[definition.provider].values[field.key]"
+                            :type="field.type === 'number' ? 'number' : 'text'"
+                            :placeholder="field.placeholder || field.label"
+                          />
+                        </label>
                       </div>
-                      <p class="mt-2 text-xs text-zinc-500">未测试</p>
+                      <p
+                        class="mt-2 text-xs"
+                        :class="{
+                          'text-green-700': apiForms[definition.provider]?.result?.ok,
+                          'text-red-700': apiForms[definition.provider]?.result && !apiForms[definition.provider]?.result?.ok,
+                          'text-zinc-500': !apiForms[definition.provider]?.result,
+                        }"
+                      >
+                        {{ apiForms[definition.provider]?.result?.message || (apiForms[definition.provider]?.configured ? `已保存 ${apiForms[definition.provider]?.preview}` : "未测试") }}
+                      </p>
                     </div>
                   </div>
                 </ScrollArea>
