@@ -2,6 +2,7 @@
 import {
 	type GuiConfig,
 	type ArtifactItem,
+	type ArtifactPackageResponse,
 	type ChatMessageRecord,
 	type ProgressEvent,
 	type RagCaseItem,
@@ -13,10 +14,12 @@ import {
 	type WorkspacePlan,
 	appendChatMessage,
 	applyWorkspacePlanAction,
+	createArtifactPackage,
 	createGuiWorkspace,
 	createRevisionRequest,
 	draftWorkspacePlan,
 	getWorkspaceArtifactDownloadUrl,
+	getArtifactPackageDownloadUrl,
 	getWorkspaceEvents,
 	getRagGuide,
 	listWorkspaceArtifacts,
@@ -123,6 +126,8 @@ const eventCursor = ref(0);
 const artifacts = ref<ArtifactItem[]>([]);
 const artifactPreview = ref<{ path: string; content: string } | null>(null);
 const artifactLoading = ref(false);
+const artifactPackage = ref<ArtifactPackageResponse | null>(null);
+const packaging = ref(false);
 const workspaceInputs = ref<WorkspaceInputItem[]>([]);
 const inputPreview = ref<WorkspaceInputItem | null>(null);
 const inputLoading = ref(false);
@@ -498,6 +503,7 @@ const createWorkspace = async () => {
 		eventCursor.value = 0;
 		artifacts.value = [];
 		artifactPreview.value = null;
+		artifactPackage.value = null;
 		workspaceInputs.value = [];
 		inputPreview.value = null;
 		currentPlan.value = null;
@@ -910,6 +916,35 @@ const openArtifact = async (artifact: ArtifactItem) => {
 	}
 };
 
+const buildArtifactPackage = async () => {
+	if (!activeTaskId.value) return;
+	packaging.value = true;
+	try {
+		const response = await createArtifactPackage(activeTaskId.value);
+		artifactPackage.value = response.data;
+		await refreshArtifacts();
+		await refreshEvents();
+		toast({
+			title: "提交包已生成",
+			description: `${response.data.artifact_count} 个产物已打包。`,
+		});
+	} catch (error) {
+		console.error("生成提交包失败:", error);
+		toast({
+			title: "生成提交包失败",
+			description: "请确认工作区已有可打包产物。",
+			variant: "destructive",
+		});
+	} finally {
+		packaging.value = false;
+	}
+};
+
+const downloadArtifactPackage = () => {
+	if (!activeTaskId.value || !artifactPackage.value) return;
+	window.open(getArtifactPackageDownloadUrl(activeTaskId.value), "_blank");
+};
+
 onMounted(() => {
 	loadConfig();
 	refreshRagLibrary();
@@ -1298,10 +1333,25 @@ onBeforeUnmount(() => {
 
         <Card class="min-h-0 flex-1 rounded-lg shadow-sm">
           <CardHeader class="pb-3">
-            <CardTitle class="text-base">产物</CardTitle>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle class="text-base">产物</CardTitle>
+              <div class="flex items-center gap-2">
+                <Button size="xs" variant="outline" :disabled="!activeTaskId || packaging" @click="buildArtifactPackage">
+                  {{ packaging ? "打包中" : "生成提交包" }}
+                </Button>
+                <Button size="xs" :disabled="!artifactPackage" @click="downloadArtifactPackage">
+                  下载
+                </Button>
+              </div>
+            </div>
             <CardDescription>论文、图表、数据表和日志会在这里预览。</CardDescription>
           </CardHeader>
           <CardContent>
+            <div v-if="artifactPackage" class="mb-3 rounded-md border bg-white px-3 py-2 text-xs text-zinc-600">
+              提交包：
+              <span class="font-mono">{{ artifactPackage.package_path }}</span>
+              <span class="ml-2">{{ artifactPackage.artifact_count }} files · {{ artifactPackage.size }} bytes</span>
+            </div>
             <div class="flex flex-col gap-2">
               <button
                 v-for="item in displayedArtifacts"

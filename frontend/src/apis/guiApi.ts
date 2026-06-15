@@ -66,6 +66,8 @@ export interface ArtifactItem {
 	filename: string;
 	size: number;
 	file_type: string;
+	sha256?: string;
+	priority?: number;
 }
 
 export interface RunWorkspacePayload {
@@ -79,6 +81,15 @@ export interface ArtifactContentResponse {
 	task_id: string;
 	path: string;
 	content: string;
+}
+
+export interface ArtifactPackageResponse {
+	task_id: string;
+	package_path: string;
+	manifest_path: string;
+	artifact_count: number;
+	size: number;
+	artifacts: ArtifactItem[];
 }
 
 export interface RagCaseFile {
@@ -246,6 +257,17 @@ export function getWorkspaceArtifactDownloadUrl(taskId: string, path: string) {
 	const baseURL = request.defaults.baseURL || "";
 	const params = new URLSearchParams({ path });
 	return `${baseURL}/api/gui/workspaces/${taskId}/artifacts/download?${params.toString()}`;
+}
+
+export function createArtifactPackage(taskId: string) {
+	return request.post<ArtifactPackageResponse>(
+		`/api/gui/workspaces/${taskId}/artifacts/package`,
+	);
+}
+
+export function getArtifactPackageDownloadUrl(taskId: string) {
+	const baseURL = request.defaults.baseURL || "";
+	return `${baseURL}/api/gui/workspaces/${taskId}/artifacts/package/download`;
 }
 
 export function listRagCases() {
